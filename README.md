@@ -43,6 +43,10 @@ Create `.env` in project root.
 | `GROQ_API_KEY` | No | none | AI chat + optional LLM risk |
 | `CF_TURNSTILE_SECRET_KEY` | No | none | Turnstile server validation |
 | `ENABLE_LLM_RISK` | No | `False` | Enable LLM-enhanced risk scoring |
+| `DATABASE_URL` | No (local), Yes (Render) | none | Production PostgreSQL connection |
+| `ALLOWED_HOSTS` | No | `127.0.0.1,localhost` | Comma-separated host allowlist |
+| `CSRF_TRUSTED_ORIGINS` | No | none | Comma-separated trusted HTTPS origins |
+| `REDIS_URL` | No | none | Optional Redis cache backend |
 
 ## Run
 ```bash
@@ -69,6 +73,27 @@ GitHub Actions workflow runs on push/PR:
 - `manage.py test`
 
 Workflow file: `.github/workflows/ci.yml`
+
+## Render Deployment
+This repository includes `render.yaml` and `build.sh` for one-click Render setup.
+
+### Option A: Blueprint deploy (recommended)
+1. Push this repository to GitHub.
+2. In Render dashboard, choose **New +** -> **Blueprint**.
+3. Select this repository.
+4. Render will create:
+   - Web service: `tango-finance`
+   - PostgreSQL database: `tango-finance-db`
+5. After first deploy, set required secrets in Render:
+   - `GROQ_API_KEY` (optional if using AI chat)
+   - `CF_TURNSTILE_SECRET_KEY` (optional)
+   - `REDIS_URL` (optional)
+6. Open the web URL and test `/finance/` and `/admin/`.
+
+### Option B: Manual web service
+If not using Blueprint, create a Python web service and set:
+- Build command: `./build.sh`
+- Start command: `gunicorn django_finances.wsgi:application`
 
 ## API Endpoints (Authenticated)
 - `POST /finance/api/agent/transaction/`

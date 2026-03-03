@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: tango-finance
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn django_finances.wsgi:application"
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ENABLE_LLM_RISK
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "127.0.0.1,localhost"
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CF_TURNSTILE_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tango-finance-db
+          property: connectionString
+
+databases:
+  - name: tango-finance-db
+    plan: free
