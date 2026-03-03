@@ -72,6 +72,7 @@ def send_code(request):
     if cache.get(lock_key): return JsonResponse({'status': 'error', 'message': 'Wait 60s.'})
 
     code = random.randint(100000, 999999)
+    # Store active OTP in cache for fast validation; store hashed copy in DB for audit traceability.
     cache.set(f"finance:reg_otp:{email}", code, timeout=600)
     cache.set(lock_key, True, timeout=60)
     UserEmailOTP.objects.create(
@@ -241,6 +242,7 @@ def send_delete_code(request):
 def delete_account(request):
     if request.method == 'POST':
         lock_id = f"lock:delete_user:{request.user.id}"
+        # Prevent double-submit races on destructive account operations.
         with cache.lock(lock_id, timeout=10, blocking=False) as acquired:
             if not acquired:
                 return JsonResponse({'status': 'error', 'message': 'Processing...'})
@@ -304,6 +306,7 @@ def change_password(request):
 
 @login_required
 def export_csv(request):
+    # Deterministic ordering helps users diff exports and avoids unstable file content.
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="tango_{date.today()}.csv"'
     writer = csv.writer(response)

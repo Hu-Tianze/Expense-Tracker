@@ -35,6 +35,7 @@ def _heuristic_risk(transaction_obj):
         reasons.append("High absolute amount.")
 
     thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+    # Compare against recent behavior to reduce false positives from user-specific spending patterns.
     recent_expenses = Transaction.objects.filter(
         user=transaction_obj.user,
         type="Expense",
@@ -69,6 +70,7 @@ def _heuristic_risk(transaction_obj):
 
 
 def _llm_risk(transaction_obj, heuristic_result):
+    # LLM enrichment is opt-in and only runs on suspicious candidates.
     if os.getenv("ENABLE_LLM_RISK", "False") != "True":
         return None
 
@@ -148,6 +150,7 @@ def _llm_risk(transaction_obj, heuristic_result):
 
 @transaction.atomic
 def evaluate_and_persist_risk_alert(transaction_obj):
+    # Use heuristic result as guaranteed baseline; LLM only refines when available.
     heuristic = _heuristic_risk(transaction_obj)
     llm_result = _llm_risk(transaction_obj, heuristic)
     final = llm_result or heuristic
