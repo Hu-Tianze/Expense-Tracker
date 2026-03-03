@@ -9,6 +9,7 @@ from unittest.mock import patch
 from finance.models import Category, Transaction, RiskAlert
 from finance.utils import get_exchange_rate
 from user.models import User
+from user.models import EmailOTP as UserEmailOTP
 
 
 class FinanceViewsTests(TestCase):
@@ -207,6 +208,18 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(second.json()["status"], "error")
         self.assertIn("Wait 60s", second.json()["message"])
+
+    @patch("finance.views.verify_turnstile", return_value=True)
+    def test_send_code_persists_otp_audit_record(self, _):
+        response = self.client.post(
+            reverse("finance:send_code"),
+            {"email": "audit@example.com", "cf_token": "ok"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        otp = UserEmailOTP.objects.get(email="audit@example.com", purpose="register")
+        self.assertIsNotNone(otp.code_hash)
+        self.assertIsNone(otp.used_at)
 
     @patch("finance.views.verify_turnstile", return_value=False)
     def test_send_code_rejects_failed_turnstile(self, _):

@@ -133,8 +133,7 @@ AUTH_USER_MODEL = 'user.User'
 # EMAIL_HOST_USER = '3149288H@student.gla.ac.uk'
 # EMAIL_HOST_PASSWORD = 'hflw tbsn wxpb fhig'
 
-#Testing email otp
-#TODO: Replace it with a real email
+# Use console backend in local development.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 LOGIN_REDIRECT_URL = '/finance/'

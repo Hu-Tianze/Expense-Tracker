@@ -1,14 +1,12 @@
 import requests
 import json
 
-# 1. Configuration
 API_URL = "http://127.0.0.1:8000/finance/api/agent/transaction/"
 TOKEN = "ba42dd8babe509c7ed11601e130f59f982f74aa6 "
 
 def simulate_ai_agent(user_command):
     print(f"Agent command received: '{user_command}'")
     
-    # 2. Simulate parsed result from an LLM.
     mock_llm_data = {
         "amount": "15.00",
         "currency": "GBP",
@@ -18,7 +16,6 @@ def simulate_ai_agent(user_command):
         "date": "2026-02-04T12:00:00Z"
     }
 
-    # 3. Send payload to Django API.
     headers = {
         "Authorization": f"Token {TOKEN}",
         "Content-Type": "application/json"

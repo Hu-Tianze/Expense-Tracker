@@ -1,119 +1,111 @@
-# 💹 Expense-Tracker AI
-> **Transform messy natural language into structured financial records.**
-> An AI-Agent driven expense management system powered by Django & Llama 3.1.
+# Tango Finance
 
----
+Tango Finance is a Django web application for personal transaction tracking with multi-currency support, AI-assisted input, and admin-side risk monitoring.
 
-## 🚀 Project Overview
-**Expense-Tracker AI** is a smart financial assistant designed to bridge the gap between human conversation and rigorous bookkeeping. Instead of manual data entry, users simply "chat" with the system. The backend leverages a high-performance architecture to ensure every transaction is parsed accurately and stored securely.
+## What This Project Implements
+- User authentication (custom email-based user model)
+- Transaction CRUD with ownership checks
+- Category management per user
+- Multi-currency transactions with GBP normalization
+- AI-assisted transaction recording endpoints
+- OTP-protected sensitive account operations
+- Audit logs for transaction lifecycle events
+- Risk alerts for abnormal expense behavior
+- Admin ban/unban (soft disable, no data deletion)
 
+## Architecture Summary
+- `finance/views.py`: web views (dashboard/profile/OTP flows)
+- `finance/api_views.py`: REST endpoints
+- `finance/services/transactions.py`: shared transaction business logic
+- `finance/services/risk.py`: heuristic + optional LLM risk scoring
+- `finance/models.py`: domain models (`Transaction`, `Category`, `AuditLog`, `RiskAlert`)
+- `finance/templates/` + `finance/static/`: frontend templates and assets
 
+## Requirements
+- Python 3.12
+- Django 6.0.1
+- Dependencies in `requirements.txt`
 
-## 🌟 Key Features
-
-### 🤖 AI-Powered Intelligence
-* **Natural Language Accounting**: Converts phrases like *"Spent 15 quid on a burger at Five Guys"* into structured data (Amount, Currency, Category, Note).
-* **Financial Memory (RAG-lite)**: Injects the user's last 30 days of spending history into the AI context for personalized analysis.
-* **Deterministic Parsing**: Uses Llama 3.1 **JSON Mode** to ensure 100% reliable integration with the Django ORM.
-
-### 🔐 Security & Authentication
-* **Passwordless Login**: Seamless user experience via **Email OTP (One-Time Password)** verification.
-* **Dual-Channel Auth**: Supports **SessionAuthentication** for web users and **TokenAuthentication** for automated Agent scripts.
-* **Environment Isolation**: Sensitive credentials are fully decoupled using `.env` files.
-
-### ⚡ Engineering Excellence
-* **High-Concurrency Ready**: Offloads session and cache management to **Redis (RAM)** to minimize Disk I/O bottlenecks.
-* **Data Integrity**: Uses `transaction.atomic()` to guarantee "all-or-nothing" operations during AI processing.
-* **Financial Precision**: Implements the `Decimal` type for all monetary calculations to eliminate floating-point rounding errors.
-* **Optimized Lookups**: Uses **B-Tree Indexing** on unique identifiers (Email) for $O(\log n)$ retrieval speed.
-
-
-
-## 🛠️ Tech Stack
-* **Framework**: Django 6.0, Django REST Framework (DRF)
-* **LLM Engine**: Llama 3.1 (via Groq Cloud API)
-* **Cache/Session**: Redis
-* **Database**: SQLite3 (Development) / PostgreSQL (Production ready)
-* **Security**: python-dotenv, DRF Tokens
-
----
-
-## 🔧 Installation & Setup
-
-1. **Clone the Repository**
-   ```bash
-   git clone [https://github.com/Hu-Tianze/Expense-Tracker.git](https://github.com/Hu-Tianze/Expense-Tracker.git)
-   cd Expense-Tracker# 💹 Expense-Tracker AI
-> **Transform messy natural language into structured financial records.**
-> An AI-Agent driven expense management system powered by Django & Llama 3.1.
-
----
-
-## 🚀 Project Overview
-**Expense-Tracker AI** is a smart financial assistant designed to bridge the gap between human conversation and rigorous bookkeeping. Instead of manual data entry, users simply "chat" with the system. The backend leverages a high-performance architecture to ensure every transaction is parsed accurately and stored securely.
-
-
-
-## 🌟 Key Features
-
-### 🤖 AI-Powered Intelligence
-* **Natural Language Accounting**: Converts phrases like *"Spent 15 quid on a burger at Five Guys"* into structured data (Amount, Currency, Category, Note).
-* **Financial Memory (RAG-lite)**: Injects the user's last 30 days of spending history into the AI context for personalized analysis.
-* **Deterministic Parsing**: Uses Llama 3.1 **JSON Mode** to ensure 100% reliable integration with the Django ORM.
-
-### 🔐 Security & Authentication
-* **Passwordless Login**: Seamless user experience via **Email OTP (One-Time Password)** verification.
-* **Dual-Channel Auth**: Supports **SessionAuthentication** for web users and **TokenAuthentication** for automated Agent scripts.
-* **Environment Isolation**: Sensitive credentials are fully decoupled using `.env` files.
-
-### ⚡ Engineering Excellence
-* **High-Concurrency Ready**: Offloads session and cache management to **Redis (RAM)** to minimize Disk I/O bottlenecks.
-* **Data Integrity**: Uses `transaction.atomic()` to guarantee "all-or-nothing" operations during AI processing.
-* **Financial Precision**: Implements the `Decimal` type for all monetary calculations to eliminate floating-point rounding errors.
-* **Optimized Lookups**: Uses **B-Tree Indexing** on unique identifiers (Email) for $O(\log n)$ retrieval speed.
-
----
-
-## 🔧 Installation & Setup
-
-To protect sensitive data, the `.env` file and `db.sqlite3` are not included in this repository. Follow these steps to set up your local environment:
-
-### 1. Environment Configuration
-Create a file named `.env` in the project root directory and add your keys:
-```env
-DJANGO_SECRET_KEY=your_random_secret_key
-GROQ_API_KEY=your_groq_api_key
-DEBUG=True
-
-2. Install Dependencies
-Ensure your virtual environment is activated, then run:
-
+## Setup
+```bash
+conda activate tango-finance
+cd /Users/hutianze/Django-finance/django_finances
 pip install -r requirements.txt
+```
 
-3. Initialize Database
-Run the migrations to create the local SQLite3 database structure:
+Create `.env` in project root.
 
+## Environment Variables
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `DJANGO_SECRET_KEY` | Yes | none | Django secret key |
+| `DEBUG` | No | `True` | Debug mode |
+| `GROQ_API_KEY` | No | none | AI chat + optional LLM risk |
+| `CF_TURNSTILE_SECRET_KEY` | No | none | Turnstile server validation |
+| `ENABLE_LLM_RISK` | No | `False` | Enable LLM-enhanced risk scoring |
+
+## Run
+```bash
 python manage.py migrate
-
-4. Run the Server
-Launch the development server:
-
 python manage.py runserver
+```
 
-🛠️ Tech Stack
-Framework: Django 6.0, Django REST Framework (DRF)
+- App: `http://127.0.0.1:8000/finance/`
+- Admin: `http://127.0.0.1:8000/admin/`
 
-LLM Engine: Llama 3.1 (via Groq Cloud API)
+## Test
+```bash
+python manage.py check
+python manage.py test
+```
 
-Cache/Session: Redis
+Current baseline: **19 tests passing**.
 
-Database: SQLite3 (Development) / PostgreSQL (Production ready)
+## CI
+GitHub Actions workflow runs on push/PR:
+- install dependencies
+- migrate
+- `manage.py check`
+- `manage.py test`
 
-📈 Future Roadmap
-Support for real-time exchange rate conversion.
+Workflow file: `.github/workflows/ci.yml`
 
-Visualized financial reports using Chart.js.
+## API Endpoints (Authenticated)
+- `POST /finance/api/agent/transaction/`
+- `POST /finance/api/chat/`
 
-Voice-to-text integration for mobile accounting.
+## Security and Integrity Controls
+- POST + CSRF for destructive operations
+- Soft-ban via `is_active=False` (no record deletion)
+- `transaction.atomic()` on critical write paths
+- Transaction type canonicalization to `Income`/`Expense`
+- Structured API error responses
+- User-facing error pages for 400/403/404/500
 
+## Admin Features
+- Users: list/search/filter + ban/unban actions
+- Transactions: searchable/filterable records
+- Audit logs: read-only action trace
+- Risk alerts: severity/score/status/source overview
+- Admin “View site” points to `/finance/`
 
+## Known Limitations
+- Development email backend is console-based by default.
+- Exchange-rate API may fail without network; fallback rates are used.
+- LLM risk scoring is optional and off by default (`ENABLE_LLM_RISK=False`).
+- Redis is configured as cache backend in settings; tests use local in-memory cache overrides where needed.
+
+## Quick Verification Checklist
+1. Register/login with a test account.
+2. Add income and expense transactions in different currencies.
+3. Confirm monthly net balance updates correctly.
+4. Open admin and verify Risk Alerts and user ban/unban actions.
+5. Run `python manage.py test` and confirm all tests pass.
+
+## Recent Changes (This Submission)
+- Introduced service-layer transaction logic.
+- Added DRF serializers for API request validation.
+- Added CI pipeline (`check + test`).
+- Added risk alert model and scoring service.
+- Hardened API/web error handling and security flows.
+- Standardized runtime UI text to English.

@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework import serializers
 from .models import Transaction
 from django.db import transaction, models
 from django.utils import timezone
@@ -11,8 +12,22 @@ from datetime import timedelta
 import os
 import logging
 from .services import create_transaction
+from .serializers import AgentTransactionRequestSerializer, ChatQuerySerializer
 
 logger = logging.getLogger(__name__)
+
+
+def api_error(message, status_code, code):
+    return Response(
+        {"status": "error", "code": code, "message": message},
+        status=status_code,
+    )
+
+
+def serializer_error(serializer, code="validation_error"):
+    field, errors = next(iter(serializer.errors.items()))
+    msg = errors[0] if isinstance(errors, list) and errors else "Invalid input"
+    return api_error(f"{field}: {msg}", 400, code)
 
 
 class AgentTransactionAPI(APIView):
@@ -20,17 +35,16 @@ class AgentTransactionAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        data = request.data
+        serializer = AgentTransactionRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return serializer_error(serializer, "invalid_payload")
+        data = serializer.validated_data
         try:
             with transaction.atomic():
-                amount_val = data.get('amount')
-                if not amount_val:
-                    return Response({"status": "error", "message": "Amount is required"}, status=400)
-                
                 cat_name = data.get('category', 'General').strip()
                 new_tx = create_transaction(
                     user=request.user,
-                    amount=amount_val,
+                    amount=data.get('amount'),
                     currency=data.get('currency', 'GBP'),
                     tx_type=data.get('type', 'Expense'),
                     note=data.get('note', ''),
@@ -41,24 +55,25 @@ class AgentTransactionAPI(APIView):
                 )
                 return Response({"status": "success", "transaction_id": new_tx.id})
         except ValueError:
-            return Response({"status": "error", "message": "Invalid amount format"}, status=400)
+            return api_error("Invalid amount format", 400, "invalid_amount")
         except Exception:
             logger.exception("Agent transaction create failed for user_id=%s", request.user.id)
-            return Response({"status": "error", "message": "Internal server error"}, status=500)
+            return api_error("Internal server error", 500, "internal_error")
 
 class ChatAgentAPI(APIView):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user_query = request.data.get('query', '').strip()
-        if not user_query:
-            return Response({"error": "Query cannot be empty"}, status=400)
+        serializer = ChatQuerySerializer(data=request.data)
+        if not serializer.is_valid():
+            return serializer_error(serializer, "invalid_payload")
+        user_query = serializer.validated_data["query"]
 
         API_KEY = os.getenv("GROQ_API_KEY") 
         
         if not API_KEY:
-            return Response({"error": "GROQ_API_KEY not found in environment variables"}, status=500)
+            return api_error("AI service is not configured", 500, "ai_not_configured")
         BASE_URL = "https://api.groq.com/openai/v1/chat/completions" 
         MODEL_NAME = "llama-3.1-8b-instant"
 
@@ -126,4 +141,4 @@ class ChatAgentAPI(APIView):
 
         except Exception:
             logger.exception("Chat agent failed for user_id=%s", request.user.id)
-            return Response({"error": "Internal server error"}, status=500)
+            return api_error("Internal server error", 500, "internal_error")

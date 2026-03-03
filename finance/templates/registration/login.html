@@ -1,14 +1,20 @@
 {% extends 'layout/base.html' %}
+{% load static %}
 
 {% block title %}Login - Tango Finance{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'finance/css/auth.css' %}">
+{% endblock %}
+
 {% block content %}
+<div class="auth-shell d-flex align-items-center">
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-5">
-            <div class="card shadow-sm border-0">
+            <div class="card auth-card border-0">
                 <div class="card-body p-4">
-                    <h2 class="h4 mb-3">Login to Tango Finance</h2>
+                    <h2 class="h4 auth-title mb-3">Login to Tango Finance</h2>
 
                     {% if form.errors %}
                         <div class="alert alert-danger">Invalid email or password. Please try again.</div>
@@ -32,5 +38,6 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}

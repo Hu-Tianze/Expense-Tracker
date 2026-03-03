@@ -14,10 +14,12 @@ import csv
 import requests  
 from datetime import date, timedelta
 import os
+import hashlib
 
 User = get_user_model()
 from .models import Transaction, Category
 from .services import create_transaction, update_transaction
+from user.models import EmailOTP as UserEmailOTP
 
 CF_SECRET_KEY = os.getenv("CF_TURNSTILE_SECRET_KEY", "")
 
@@ -72,6 +74,13 @@ def send_code(request):
     code = random.randint(100000, 999999)
     cache.set(f"finance:reg_otp:{email}", code, timeout=600)
     cache.set(lock_key, True, timeout=60)
+    UserEmailOTP.objects.create(
+        email=email,
+        code_hash=hashlib.sha256(str(code).encode("utf-8")).hexdigest(),
+        purpose="register",
+        expires_at=timezone.now() + timedelta(minutes=10),
+        send_ip=request.META.get("REMOTE_ADDR"),
+    )
     return JsonResponse({'status': 'success'})
 
 @login_required
@@ -219,6 +228,13 @@ def send_delete_code(request):
     code = f"{random.randint(100000, 999999)}"
     cache.set(f"finance:del_otp:{request.user.id}", code, timeout=300)
     cache.set(lock_key, True, timeout=60)
+    UserEmailOTP.objects.create(
+        email=request.user.email,
+        code_hash=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+        purpose="delete_account",
+        expires_at=timezone.now() + timedelta(minutes=5),
+        send_ip=request.META.get("REMOTE_ADDR"),
+    )
     return JsonResponse({'status': 'success'})
 
 @login_required
@@ -255,6 +271,13 @@ def send_pwd_code(request):
     code = f"{random.randint(100000, 999999)}"
     cache.set(f"finance:pwd_otp:{request.user.id}", code, timeout=300)
     cache.set(lock_key, True, timeout=60)
+    UserEmailOTP.objects.create(
+        email=request.user.email,
+        code_hash=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+        purpose="change_password",
+        expires_at=timezone.now() + timedelta(minutes=5),
+        send_ip=request.META.get("REMOTE_ADDR"),
+    )
     return JsonResponse({'status': 'success'})
 
 @login_required

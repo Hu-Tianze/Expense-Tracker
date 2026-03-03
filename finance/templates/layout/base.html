@@ -12,6 +12,17 @@
     {% block head_extra %}{% endblock %}
 </head>
 <body class="bg-light">
+    {% if messages %}
+    <div class="app-toast-stack">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% elif message.tags == 'info' %}info{% else %}success{% endif %} alert-dismissible fade show app-toast" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if user.is_authenticated %}
     <button id="sidebarToggleBtn" type="button" aria-label="Toggle sidebar">
         <i class="bi bi-chevron-left"></i>
