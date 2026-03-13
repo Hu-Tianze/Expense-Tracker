@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 import importlib.util
+import sys
 
 try:
     from dotenv import load_dotenv
@@ -207,7 +208,9 @@ REST_FRAMEWORK = {
     ],
 }
 
-if not DEBUG:
+RUNNING_TESTS = "test" in sys.argv
+
+if not DEBUG and not RUNNING_TESTS:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
