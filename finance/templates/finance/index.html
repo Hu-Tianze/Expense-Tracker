@@ -5,120 +5,177 @@
 {% block nav_dashboard_active %}active{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'finance/css/index.css' %}">
+<link rel="stylesheet" href="{% static 'finance/css/index.css' %}?v=20260312-ocean-ref5">
 {% endblock %}
 
 {% block head_extra %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-0">Welcome, <span class="text-primary">{{ user.name|default:"Tango User" }}</span>!</h2>
-            <a href="{% url 'finance:profile' %}" class="btn btn-link btn-sm p-0 text-decoration-none text-muted">Edit Profile &rsaquo;</a>
-        </div>
-    </div>
+<div class="ocean-ref-bg">
+    <div class="wave-layer wave-one"></div>
+    <div class="wave-layer wave-two"></div>
+    <div class="wave-layer wave-three"></div>
+</div>
 
-    <div class="row mb-4 g-3">
-        <div class="col-md-7">
-            <div class="row g-3">
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm metric-card metric-income p-3">
-                        <small class="opacity-75">Month Income</small>
-                        <h4 class="mb-0">£{{ month_income|floatformat:2 }}</h4>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="card border-0 shadow-sm metric-card metric-expense p-3">
-                        <small class="opacity-75">Month Expense</small>
-                        <h4 class="mb-0">£{{ month_expense|floatformat:2 }}</h4>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm metric-card {% if month_net >= 0 %}metric-net-positive{% else %}metric-net-negative{% endif %} p-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="opacity-75">Monthly Net Balance</small>
-                                <h3 class="mb-0">£{{ month_net|floatformat:2 }}</h3>
-                            </div>
-                            <div class="fs-1">{% if month_net >= 0 %}💰{% else %}⚠️{% endif %}</div>
-                        </div>
-                    </div>
-                </div>
+<div class="ocean-ref-shell">
+    <main class="ocean-ref-board">
+        <header class="ref-topbar glass-panel">
+            <div class="brand-wrap">
+                <i class="bi bi-water"></i>
+                <span>Ocean Finance</span>
             </div>
-        </div>
-        <div class="col-md-5">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                        <h6 class="text-muted mb-3">Expense by Category</h6>
-                        <div class="chart-container">
-                            <canvas id="expenseChart"></canvas>
-                        </div>
-                        <p id="expenseChartHint" class="small text-muted mt-2 mb-0"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-            <h5 class="mb-0">Recent Transactions</h5>
-            <button type="button" class="btn btn-primary btn-sm" id="openAddModalBtn">+ Add Record</button>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 txn-table">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Date</th>
-                            <th>Type / Category</th>
-                            <th class="text-end">Amount</th>
-                            <th class="text-end">Settlement</th>
-                            <th>Note</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in transactions %}
-                        <tr>
-                            <td class="small text-muted">{{ item.occurred_at|date:"M d, H:i" }}</td>
-                            <td>
-                                <span class="badge {% if item.type == 'Income' %}bg-success{% else %}bg-danger{% endif %}">{{ item.type }}</span>
-                                <div class="small text-muted mt-1">{{ item.category.name|default:"General" }}</div>
-                            </td>
-                            <td class="text-end">{{ item.currency }} {{ item.original_amount }}</td>
-                            <td class="text-end {% if item.type == 'Income' %}text-success fw-bold{% else %}text-dark{% endif %}">£ {{ item.amount_in_gbp }}</td>
-                            <td class="text-muted small note-cell" title="{{ item.note|default:'-' }}">{{ item.note|default:"-" }}</td>
-                            <td>
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary border-0 edit-transaction-btn" data-transaction-id="{{ item.id }}" type="button">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <form action="{% url 'finance:delete_transaction' item.id %}" method="post" class="d-inline confirm-delete-form">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="6" class="text-center py-5 text-muted">No records found. Click "+ Add Record" to start.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <nav class="ref-nav" aria-label="Main navigation">
+                <a class="active" href="{% url 'finance:transaction_list' %}">Dashboard</a>
+                <a href="#recent-transactions">Transactions</a>
+                <a href="#kpi-column">Analytics</a>
+                <a href="{% url 'finance:profile' %}">Profile</a>
+            </nav>
+
+            <div class="top-actions">
+                <i class="bi bi-search"></i>
+                <i class="bi bi-bell"></i>
+                <div class="avatar-dot">{{ user.name|default:"U"|first|upper }}</div>
             </div>
-        </div>
-    </div>
+        </header>
+
+        <section class="ref-grid">
+            <div class="main-zone">
+                <div class="summary-row">
+                    <article class="summary-card glass-panel focus-card">
+                        <small>Expense Focus</small>
+                        <h3>£{{ month_expense|floatformat:0 }}</h3>
+                        <div class="focus-bars" aria-hidden="true">
+                            <span style="height: 28%"></span>
+                            <span style="height: 56%"></span>
+                            <span style="height: 40%"></span>
+                            <span style="height: 20%"></span>
+                            <span style="height: 34%"></span>
+                        </div>
+                    </article>
+
+                    <article class="summary-card glass-panel income">
+                        <small>Month Income</small>
+                        <h3>£{{ month_income|floatformat:2 }}</h3>
+                    </article>
+
+                    <article class="summary-card glass-panel expense">
+                        <small>Month Expense</small>
+                        <h3>£{{ month_expense|floatformat:2 }}</h3>
+                    </article>
+
+                    <article class="summary-card glass-panel net">
+                        <small>Net Balance</small>
+                        <h3>£{{ month_net|floatformat:2 }}</h3>
+                    </article>
+                </div>
+
+                <section class="transactions-panel glass-panel" id="recent-transactions">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Recent Transactions</h2>
+                            <p>Your financial activity this week</p>
+                        </div>
+                        <button type="button" class="btn btn-info add-record-btn" id="openAddModalBtn">
+                            <i class="bi bi-plus-circle-fill me-2"></i>Add Record
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 txn-table">
+                            <thead>
+                                <tr>
+                                    <th>Description / Date</th>
+                                    <th>Category</th>
+                                    <th>Date</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Settlement</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in transactions %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">{{ item.note|default:"General Record"|truncatechars:26 }}</div>
+                                        <div class="small text-light-emphasis">{{ item.occurred_at|date:"M d, H:i" }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge category-pill {% if item.type == 'Income' %}income-pill{% else %}expense-pill{% endif %}">
+                                            {{ item.category.name|default:"General" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.occurred_at|date:"M d, Y" }}</td>
+                                    <td class="text-end {% if item.type == 'Income' %}amount-pos{% else %}amount-neg{% endif %}">
+                                        {% if item.type == 'Income' %}+{% else %}-{% endif %}{{ item.currency }} {{ item.original_amount }}
+                                    </td>
+                                    <td class="text-end">£ {{ item.amount_in_gbp }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-info border-0 edit-transaction-btn" data-transaction-id="{{ item.id }}" type="button">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <form action="{% url 'finance:delete_transaction' item.id %}" method="post" class="d-inline confirm-delete-form">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-center py-5 text-light-emphasis">No records yet. Add your first transaction.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="kpi-zone" id="kpi-column">
+                <section class="kpi-panel glass-panel">
+                    <h4>Financial KPIs</h4>
+
+                    <article class="kpi-card glass-panel-2">
+                        <small>Unpaid Outflows</small>
+                        <h5>£{{ month_expense|floatformat:2 }}</h5>
+                        <div class="kpi-progress"><span style="width: 72%"></span></div>
+                    </article>
+
+                    <article class="kpi-card glass-panel-2">
+                        <small>Expected Income</small>
+                        <h5>£{{ month_income|floatformat:2 }}</h5>
+                        <div class="kpi-progress income"><span style="width: 58%"></span></div>
+                    </article>
+
+                    <article class="kpi-card glass-panel-2 net-card">
+                        <small>Monthly Net</small>
+                        <h5>£{{ month_net|floatformat:2 }}</h5>
+                        <p id="expenseChartHint" class="mb-0"></p>
+                    </article>
+                </section>
+
+                <section class="kpi-panel glass-panel chart-side">
+                    <h4>Category Mix</h4>
+                    <div class="chart-box">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </section>
+            </aside>
+        </section>
+    </main>
 </div>
 
 <div id="ai-chat-wrapper">
-    <div id="chat-window" class="card shadow-lg border-0 mb-3 d-none">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
-            <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Tango AI Assistant</h6>
+    <div id="chat-window" class="card shadow-lg border-0 mb-3 ocean-chat-window chat-window-closed" aria-hidden="true">
+        <div class="card-header ocean-chat-header text-white d-flex justify-content-between align-items-center py-3">
+            <h6 class="mb-0 d-flex align-items-center gap-2"><span class="chat-octo-mini"></span>Tango Octopus Assistant</h6>
             <button type="button" class="btn-close btn-close-white chat-toggle-btn"></button>
         </div>
         <div id="chat-messages" class="card-body overflow-auto p-3 chat-messages-body">
@@ -126,15 +183,25 @@
                 <div>Hi! I can help you record spending or analyze your last 30 days. <br><small class="text-muted">Example: "I spent £15 on dinner"</small></div>
             </div>
         </div>
-        <div class="card-footer bg-white border-0 p-3">
+        <div class="card-footer ocean-chat-footer border-0 p-3">
             <div class="input-group">
-                <input type="text" id="chat-input" class="form-control border-light bg-light" placeholder="Talk to AI...">
+                <input type="text" id="chat-input" class="form-control border-light bg-light" placeholder="Talk to the octopus...">
                 <button class="btn btn-primary" id="chat-send-btn" type="button"><i class="bi bi-send-fill"></i></button>
             </div>
         </div>
     </div>
-    <button class="btn btn-primary rounded-circle shadow-lg p-3 chat-toggle-btn chat-fab" type="button">
-        <i class="bi bi-chat-right-dots-fill fs-3"></i>
+    <button class="chat-toggle-btn chat-fab octo-fab" type="button" aria-label="Open AI assistant" aria-expanded="false" aria-controls="chat-window">
+        <div class="octo-fab-creature">
+            <div class="octopus-wrap">
+                <div class="octopus-head">
+                    <div class="octo-eye eye-left"><div class="octo-pupil"></div></div>
+                    <div class="octo-eye eye-right"><div class="octo-pupil"></div></div>
+                </div>
+                <div class="octopus-cheek cheek-left"></div>
+                <div class="octopus-cheek cheek-right"></div>
+                <div class="octopus-mouth"></div>
+            </div>
+        </div>
     </button>
 </div>
 
@@ -203,5 +270,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'finance/js/index.js' %}"></script>
+<script src="{% static 'finance/js/index.js' %}?v=20260312-ocean-ref5"></script>
 {% endblock %}

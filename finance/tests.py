@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.test.utils import override_settings
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
@@ -209,6 +210,10 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertEqual(second.json()["status"], "error")
         self.assertIn("Wait 60s", second.json()["message"])
 
+    def test_send_code_requires_post(self):
+        response = self.client.get(reverse("finance:send_code"))
+        self.assertEqual(response.status_code, 405)
+
     @patch("finance.views.verify_turnstile", return_value=True)
     def test_send_code_persists_otp_audit_record(self, _):
         response = self.client.post(
@@ -230,6 +235,21 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "error")
         self.assertIn("Security check failed", response.json()["message"])
+
+    def test_register_rejects_weak_password(self):
+        cache.set("finance:reg_otp:weak@example.com", "123456", timeout=600)
+        response = self.client.post(
+            reverse("finance:register"),
+            {
+                "email": "weak@example.com",
+                "name": "Weak User",
+                "password": "abcdef!",
+                "code": "123456",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="weak@example.com").exists())
+        self.assertContains(response, "uppercase")
 
     def test_risk_alert_created_for_abnormal_expense(self):
         Transaction.objects.create(

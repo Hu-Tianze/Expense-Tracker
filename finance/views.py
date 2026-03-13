@@ -1,14 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Sum
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone  
 from django.core.cache import cache  
 from django.db import transaction
 from django.views.decorators.http import require_POST
+from django.core.exceptions import ValidationError
+from contextlib import nullcontext
+import logging
 import random
 import csv
 import requests  
@@ -22,6 +25,7 @@ from .services import create_transaction, update_transaction
 from user.models import EmailOTP as UserEmailOTP
 
 CF_SECRET_KEY = os.getenv("CF_TURNSTILE_SECRET_KEY", "")
+logger = logging.getLogger(__name__)
 
 def verify_turnstile(token, ip):
     if not token or not CF_SECRET_KEY:
@@ -33,8 +37,8 @@ def verify_turnstile(token, ip):
             timeout=5
         )
         return response.json().get('success', False)
-    except Exception as e:
-        print(f"Cloudflare Error: {e}")
+    except requests.RequestException:
+        logger.exception("Turnstile verification request failed")
         return False
 
 def register(request):
@@ -55,15 +59,22 @@ def register(request):
             messages.info(request, "Email already registered.")
             return redirect('login')
 
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+            return render(request, 'registration/register.html')
+
         User.objects.create_user(email=email, password=password, name=nickname)
         cache.delete(otp_key)
         messages.success(request, "Register success!")
         return redirect('login')
     return render(request, 'registration/register.html')
 
+@require_POST
 def send_code(request):
-    email = request.POST.get('email') or request.GET.get('email')
-    cf_token = request.POST.get('cf_token') or request.GET.get('cf_token')
+    email = request.POST.get('email')
+    cf_token = request.POST.get('cf_token')
     if not email: return JsonResponse({'status': 'error', 'message': 'Email required'})
     if not verify_turnstile(cf_token, request.META.get('REMOTE_ADDR')):
         return JsonResponse({'status': 'error', 'message': 'Security check failed.'})
@@ -136,6 +147,7 @@ def add_transaction(request):
         except ValueError:
             messages.error(request, "Invalid amount format.")
         except Exception:
+            logger.exception("Failed to add transaction for user_id=%s", request.user.id)
             messages.error(request, "Failed to add record.")
             
     return redirect('finance:transaction_list')
@@ -165,6 +177,7 @@ def edit_transaction(request, tid):
         except ValueError:
             messages.error(request, "Update failed. Check your input.")
         except Exception:
+            logger.exception("Failed to edit transaction id=%s for user_id=%s", tid, request.user.id)
             messages.error(request, "Update failed. Check your input.")
         return redirect('finance:transaction_list')
     
@@ -194,9 +207,22 @@ def profile_view(request):
             request.user.name = new_name[:50]
             request.user.save()
             messages.success(request, "Nickname updated!")
-    
+
     user_categories = Category.objects.filter(user=request.user)
-    return render(request, 'finance/profile.html', {'user_categories': user_categories})
+    items = Transaction.objects.filter(user=request.user)
+    today = date.today()
+    month_qs = items.filter(occurred_at__year=today.year, occurred_at__month=today.month)
+
+    month_income = month_qs.filter(type='Income').aggregate(Sum('amount_in_gbp'))['amount_in_gbp__sum'] or 0
+    month_expense = month_qs.filter(type='Expense').aggregate(Sum('amount_in_gbp'))['amount_in_gbp__sum'] or 0
+    month_net = month_income - month_expense
+
+    return render(request, 'finance/profile.html', {
+        'user_categories': user_categories,
+        'month_income': month_income,
+        'month_expense': month_expense,
+        'month_net': month_net,
+    })
 
 @login_required
 def add_category(request):
@@ -243,8 +269,9 @@ def delete_account(request):
     if request.method == 'POST':
         lock_id = f"lock:delete_user:{request.user.id}"
         # Prevent double-submit races on destructive account operations.
-        with cache.lock(lock_id, timeout=10, blocking=False) as acquired:
-            if not acquired:
+        lock_context = cache.lock(lock_id, timeout=10, blocking=False) if hasattr(cache, "lock") else nullcontext(True)
+        with lock_context as acquired:
+            if hasattr(cache, "lock") and not acquired:
                 return JsonResponse({'status': 'error', 'message': 'Processing...'})
                 
             input_code = request.POST.get('code')
@@ -291,6 +318,12 @@ def change_password(request):
         real_code = cache.get(otp_key)
         
         if real_code and code == str(real_code):
+            try:
+                validate_password(new_password, request.user)
+            except ValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+                return redirect('finance:profile')
+
             with transaction.atomic():
                 user = request.user
                 user.set_password(new_password)

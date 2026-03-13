@@ -5,110 +5,159 @@
 {% block nav_profile_active %}active{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'finance/css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'finance/css/profile.css' %}?v=20260311-ocean-profile1">
 {% endblock %}
 
 {% block head_extra %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-md-7">
-            <a href="{% url 'finance:transaction_list' %}" class="btn btn-link text-decoration-none mb-3 p-0 text-muted">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
+<div class="profile-ocean-bg" aria-hidden="true"></div>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show shadow-sm border-0">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+<main class="profile-shell">
+    <header class="profile-topcapsule profile-glass">
+        <div class="capsule-brand">
+            <i class="bi bi-water"></i>
+            <span>Ocean <em>Finance</em></span>
+        </div>
+        <nav class="capsule-nav" aria-label="Profile navigation">
+            <a href="{% url 'finance:transaction_list' %}">Dashboard</a>
+            <a href="{% url 'finance:transaction_list' %}#recent-transactions">Transactions</a>
+            <a href="{% url 'finance:transaction_list' %}#kpi-column">Analytics</a>
+            <a class="active" href="{% url 'finance:profile' %}">Profile</a>
+        </nav>
+        <div class="capsule-user">
+            <i class="bi bi-bell"></i>
+            <span class="capsule-avatar">{{ user.name|default:"U"|first|upper }}</span>
+        </div>
+    </header>
 
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-primary text-white py-3"><h5 class="mb-0">User Settings</h5></div>
-                <div class="card-body p-4">
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-muted text-uppercase">Email</label>
-                            <input type="text" class="form-control bg-light" value="{{ user.email }}" disabled>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-muted text-uppercase">Nickname</label>
-                            <input type="text" name="nickname" class="form-control" value="{{ user.name|default:'' }}">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Update Profile</button>
-                    </form>
+    <div class="profile-grid">
+        <aside class="profile-left">
+            <section class="profile-glass profile-card identity-card">
+                <div class="identity-avatar">{{ user.name|default:"U"|first|upper }}</div>
+                <h2>{{ user.name|default:"Tango User" }}</h2>
+                <p>{{ user.email }}</p>
+                <div class="identity-badges">
+                    <span>Active User</span>
+                    <span>{{ user.date_joined|date:"b Y" }}</span>
                 </div>
-            </div>
-
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white py-3"><h5 class="mb-0 text-dark">Categories</h5></div>
-                <div class="card-body p-4">
-                    <form action="{% url 'finance:add_category' %}" method="post" class="mb-4">
-                        {% csrf_token %}
-                        <div class="input-group">
-                            <input type="text" name="cat_name" class="form-control" placeholder="New Category" required>
-                            <button type="submit" class="btn btn-success">Add</button>
-                        </div>
-                    </form>
-                    <div class="list-group list-group-flush border rounded">
-                        {% for cat in user_categories %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ cat.name }}</span>
-                            <form action="{% url 'finance:delete_category' cat.id %}" method="post" class="d-inline confirm-category-delete-form">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-link text-danger p-0 border-0">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                        {% empty %}
-                        <div class="list-group-item text-center text-muted">No custom categories yet.</div>
-                        {% endfor %}
+                <div class="identity-metrics">
+                    <div>
+                        <small>Member Since</small>
+                        <strong>{{ user.date_joined|date:"Y-m-d" }}</strong>
+                    </div>
+                    <div>
+                        <small>Last Login</small>
+                        <strong>{% if user.last_login %}{{ user.last_login|date:"Y-m-d" }}{% else %}N/A{% endif %}</strong>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-3"><h5 class="mb-0">Data & Security</h5></div>
-                <div class="card-body p-4">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-muted text-uppercase d-block mb-2">Backup</label>
-                        <a href="{% url 'finance:export_csv' %}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-download me-2"></i>Export Transactions to CSV
-                        </a>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-muted text-uppercase d-block mb-2">Security</label>
-                        <button type="button" class="btn btn-outline-dark w-100" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                            <i class="bi bi-shield-lock me-2"></i>Change Account Password
-                        </button>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-danger text-uppercase d-block mb-2">Danger Zone</label>
-                        <p class="small text-muted mb-3">Permanently delete your account and all associated data.</p>
-                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                            Delete Account Permanently
-                        </button>
-                    </div>
-
+            <section class="profile-glass profile-card">
+                <h3><i class="bi bi-graph-up-arrow"></i> Account Insights</h3>
+                <div class="insight-item">
+                    <div><span>Monthly Income</span><strong>£{{ month_income|floatformat:2 }}</strong></div>
+                    <div class="bar"><i style="width: 70%"></i></div>
                 </div>
-            </div>
+                <div class="insight-item">
+                    <div><span>Monthly Expense</span><strong>£{{ month_expense|floatformat:2 }}</strong></div>
+                    <div class="bar"><i class="expense" style="width: 58%"></i></div>
+                </div>
+                <div class="insight-item">
+                    <div><span>Monthly Net</span><strong>£{{ month_net|floatformat:2 }}</strong></div>
+                    <div class="bar"><i class="net" style="width: 65%"></i></div>
+                </div>
+            </section>
+        </aside>
+
+        <section class="profile-right">
+            <form method="post" id="profileForm" class="profile-glass profile-card section-card">
+                {% csrf_token %}
+                <h3><i class="bi bi-person-gear"></i> Personal Information</h3>
+                <div class="form-grid">
+                    <label>
+                        <span>Nickname</span>
+                        <input type="text" name="nickname" value="{{ user.name|default:'' }}">
+                    </label>
+                    <label>
+                        <span>Email</span>
+                        <input type="text" value="{{ user.email }}" disabled>
+                    </label>
+                    <label>
+                        <span>Preferred Currency</span>
+                        <select>
+                            <option>GBP (£) - British Pound</option>
+                            <option>USD ($) - US Dollar</option>
+                            <option>CNY (¥) - Chinese Yuan</option>
+                            <option>EUR (€) - Euro</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Timezone</span>
+                        <select>
+                            <option>(GMT+00:00) London</option>
+                            <option>(GMT+08:00) Beijing</option>
+                            <option>(GMT-08:00) Pacific Time</option>
+                        </select>
+                    </label>
+                </div>
+            </form>
+
+            <section class="profile-glass profile-card section-card">
+                <h3><i class="bi bi-tags"></i> Categories</h3>
+                <form action="{% url 'finance:add_category' %}" method="post" class="category-add-form">
+                    {% csrf_token %}
+                    <input type="text" name="cat_name" placeholder="New category" required>
+                    <button type="submit">Add</button>
+                </form>
+                <div class="category-list">
+                    {% for cat in user_categories %}
+                    <div class="category-row">
+                        <span>{{ cat.name }}</span>
+                        <form action="{% url 'finance:delete_category' cat.id %}" method="post" class="confirm-category-delete-form">
+                            {% csrf_token %}
+                            <button type="submit" aria-label="Delete category"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                    {% empty %}
+                    <div class="category-empty">No custom categories yet.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="profile-glass profile-card section-card">
+                <h3><i class="bi bi-shield-lock"></i> Security</h3>
+                <div class="security-actions">
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                        Change Account Password
+                    </button>
+                    <a href="{% url 'finance:export_csv' %}" class="btn btn-outline-light">Export Transactions to CSV</a>
+                </div>
+            </section>
+
+            <section class="danger-card">
+                <h3><i class="bi bi-exclamation-triangle"></i> Danger Zone</h3>
+                <p>Once you deactivate your account, all your data will be permanently removed. This action is irreversible.</p>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Deactivate Account</button>
+            </section>
+        </section>
+    </div>
+</main>
+
+<footer class="profile-sticky-actions">
+    <div class="profile-glass sticky-inner">
+        <p>Only nickname is persisted right now. Other fields are UI placeholders.</p>
+        <div>
+            <a href="{% url 'finance:transaction_list' %}" class="btn btn-outline-light">Cancel</a>
+            <button type="submit" form="profileForm" class="btn btn-info">Save Changes</button>
         </div>
     </div>
-</div>
+</footer>
 
 <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -135,7 +184,8 @@
                         <input type="text" name="code" class="form-control mb-3" placeholder="6-digit code" autocomplete="one-time-code" required>
 
                         <label class="form-label fw-bold text-muted text-uppercase">New Password</label>
-                        <input type="password" name="new_password" class="form-control" placeholder="Minimum 8 characters" autocomplete="new-password" required>
+                        <input type="password" name="new_password" class="form-control" placeholder="At least 6 chars, upper/lower/special" minlength="6" autocomplete="new-password" required>
+                        <div class="form-text">Must include uppercase, lowercase, and one special character.</div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -192,5 +242,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'finance/js/profile.js' %}"></script>
+<script src="{% static 'finance/js/profile.js' %}?v=20260311-ocean-profile1"></script>
 {% endblock %}

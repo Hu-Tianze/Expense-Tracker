@@ -4,40 +4,74 @@
 {% block title %}Login - Tango Finance{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'finance/css/auth.css' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'finance/css/login_ocean.css' %}?v=20260311-login-morph2">
 {% endblock %}
 
 {% block content %}
-<div class="auth-shell d-flex align-items-center">
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card auth-card border-0">
-                <div class="card-body p-4">
-                    <h2 class="h4 auth-title mb-3">Login to Tango Finance</h2>
+<div class="ocean-login-shell">
+    <div class="ocean-login-card">
+        <section class="ocean-art-panel">
+            <div class="ocean-water-wave wave-one"></div>
+            <div class="ocean-water-wave wave-two"></div>
+            <div class="bubble bubble-a"></div>
+            <div class="bubble bubble-b"></div>
+            <div class="bubble bubble-c"></div>
+            <h2 class="ocean-heading">Welcome back, captain</h2>
+            <p class="ocean-subheading">Your octopus assistant is watching the sea and your cursor.</p>
 
-                    {% if form.errors %}
-                        <div class="alert alert-danger">Invalid email or password. Please try again.</div>
-                    {% endif %}
-
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="id_username" class="form-label">Email Address</label>
-                            <input type="email" name="username" id="id_username" class="form-control" required autofocus>
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_password" class="form-label">Password</label>
-                            <input type="password" name="password" id="id_password" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Sign In</button>
-                    </form>
-
-                    <p class="small text-muted mt-3 mb-0">Don't have an account? <a href="{% url 'finance:register' %}">Register here</a></p>
+            <div class="octopus-wrap" id="loginOcto">
+                <div class="octopus-head">
+                    <div class="octo-eye eye-left">
+                        <span class="octo-pupil"></span>
+                    </div>
+                    <div class="octo-eye eye-right">
+                        <span class="octo-pupil"></span>
+                    </div>
+                </div>
+                <div class="octopus-cheek cheek-left"></div>
+                <div class="octopus-cheek cheek-right"></div>
+                <div class="octopus-mouth"></div>
+                <div class="octopus-tentacles">
+                    <span></span><span></span><span></span><span></span>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <section class="ocean-form-panel">
+            <div class="ocean-form-inner">
+                <p class="ocean-kicker">Tango Finance</p>
+                <h1>Sign In</h1>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">Invalid email or password. Please try again.</div>
+                {% endif %}
+
+                <form method="post" id="loginForm" data-has-errors="{% if form.errors %}1{% else %}0{% endif %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">Email Address</label>
+                        <input type="email" name="username" id="id_username" class="form-control" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label">Password</label>
+                        <input type="password" name="password" id="id_password" class="form-control" required>
+                        <div id="loginInlineError" class="login-inline-error{% if form.errors %} show{% endif %}">
+                            Email or password is incorrect. Please try again.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 ocean-signin-btn">Dive In</button>
+                </form>
+
+                <p class="small mt-3 mb-0">Don't have an account? <a href="{% url 'finance:register' %}">Register here</a></p>
+            </div>
+        </section>
     </div>
 </div>
-</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'finance/js/login_ocean.js' %}?v=20260311-login-morph2"></script>
 {% endblock %}

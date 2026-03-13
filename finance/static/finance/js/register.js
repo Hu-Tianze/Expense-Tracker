@@ -2,8 +2,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const config = document.getElementById('register-config');
     if (!config || typeof window.$ === 'undefined') return;
 
+    const passwordInput = document.getElementById('password');
+    const emailInput = document.getElementById('email');
+    const nicknameInput = document.getElementById('name');
+    const codeInput = document.getElementById('code');
+    const submitBtn = document.getElementById('register-submit-btn');
+    const rules = {
+        length: document.getElementById('rule-length'),
+        upper: document.getElementById('rule-upper'),
+        lower: document.getElementById('rule-lower'),
+        special: document.getElementById('rule-special'),
+    };
+
     let countdown = 60;
     let timer = null;
+
+    function setRuleState(el, ok) {
+        if (!el) return;
+        el.classList.toggle('valid', ok);
+        el.classList.toggle('invalid', !ok);
+    }
+
+    function isPasswordValid(password) {
+        const checks = {
+            length: password.length >= 6,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            special: /[^A-Za-z0-9]/.test(password),
+        };
+        setRuleState(rules.length, checks.length);
+        setRuleState(rules.upper, checks.upper);
+        setRuleState(rules.lower, checks.lower);
+        setRuleState(rules.special, checks.special);
+        return checks.length && checks.upper && checks.lower && checks.special;
+    }
+
+    function refreshSubmitState() {
+        const emailReady = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((emailInput.value || '').trim());
+        const nicknameReady = (nicknameInput.value || '').trim().length > 0;
+        const codeReady = /^\d{6}$/.test((codeInput.value || '').trim());
+        const passwordReady = isPasswordValid(passwordInput.value || '');
+        submitBtn.disabled = !(emailReady && nicknameReady && codeReady && passwordReady);
+    }
 
     function setCountdown() {
         const btn = $('#send-btn');
@@ -54,4 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.prop('disabled', false).text('Get a One-Time Code');
         });
     });
+
+    [passwordInput, emailInput, nicknameInput, codeInput].forEach((el) => {
+        el.addEventListener('input', refreshSubmitState);
+    });
+    refreshSubmitState();
 });

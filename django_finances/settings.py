@@ -126,12 +126,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 6},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'user.validators.PasswordComplexityValidator',
     },
 ]
 
@@ -153,16 +157,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
-if importlib.util.find_spec("whitenoise"):
+if importlib.util.find_spec("whitenoise") and not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 AUTH_USER_MODEL = 'user.User'  
-
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.office365.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = '3149288H@student.gla.ac.uk'
-# EMAIL_HOST_PASSWORD = 'hflw tbsn wxpb fhig'
 
 # Use console backend in local development.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

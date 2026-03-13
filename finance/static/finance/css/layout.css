@@ -1,8 +1,8 @@
 :root {
     --app-sidebar-width: 250px;
-    --app-sidebar-bg: #0f172a;
-    --app-sidebar-muted: #94a3b8;
-    --app-sidebar-active: #1d4ed8;
+    --app-sidebar-bg: rgba(9, 50, 86, 0.46);
+    --app-sidebar-muted: #b8d9ec;
+    --app-sidebar-active: rgba(218, 242, 255, 0.88);
 }
 
 .app-shell {
@@ -11,7 +11,10 @@
 
 .app-sidebar {
     width: var(--app-sidebar-width);
-    background: linear-gradient(180deg, var(--app-sidebar-bg) 0%, #111827 100%);
+    background: linear-gradient(170deg, rgba(13, 59, 98, 0.58) 0%, rgba(8, 43, 76, 0.45) 100%);
+    border-right: 1px solid rgba(202, 238, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(128%);
+    -webkit-backdrop-filter: blur(18px) saturate(128%);
     color: #fff;
     position: fixed;
     left: 0;
@@ -31,7 +34,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    color: #dbeafe;
+    color: #dff3ff;
     text-decoration: none;
     border-radius: 0.5rem;
     padding: 0.55rem 0.75rem;
@@ -39,13 +42,13 @@
 }
 
 .app-nav-link:hover {
-    background: rgba(59, 130, 246, 0.18);
+    background: rgba(181, 228, 250, 0.2);
     color: #fff;
 }
 
 .app-nav-link.active {
     background: var(--app-sidebar-active);
-    color: #fff;
+    color: #123a59;
 }
 
 .app-nav-muted {
@@ -82,6 +85,41 @@
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
 }
 
+.page-transition-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        radial-gradient(circle at 12% 16%, rgba(13, 204, 242, 0.15), transparent 36%),
+        radial-gradient(circle at 85% 82%, rgba(11, 101, 128, 0.22), transparent 42%),
+        linear-gradient(160deg, rgba(7, 22, 28, 0.72), rgba(10, 31, 38, 0.5));
+    transition: opacity 0.32s ease;
+}
+
+.page-transition-overlay.enter {
+    opacity: 1;
+}
+
+.page-transition-overlay.enter.enter-active {
+    opacity: 0;
+}
+
+.page-transition-overlay.leave {
+    opacity: 1;
+}
+
+body.page-leaving .app-main-content,
+body.page-leaving .ocean-login-shell,
+body.page-leaving .auth-shell,
+body.page-leaving .profile-shell {
+    filter: saturate(106%);
+    transform: translateY(2px) scale(0.997);
+    transition: transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
+    opacity: 0.92;
+}
+
 #sidebarToggleBtn {
     position: fixed;
     top: 14px;
@@ -91,8 +129,8 @@
     height: 32px;
     border-radius: 999px;
     border: 0;
-    background: #1d4ed8;
-    color: #fff;
+    background: rgba(221, 245, 255, 0.88);
+    color: #154262;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
@@ -123,7 +161,7 @@ body.sidebar-collapsed #sidebarToggleBtn {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #0f172a;
+        background: rgba(8, 45, 78, 0.92);
         color: #fff;
         padding: 0.75rem 1rem;
     }
