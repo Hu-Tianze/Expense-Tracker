@@ -5,6 +5,8 @@ from decimal import Decimal
 from statistics import mean
 
 import requests
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -34,7 +36,7 @@ def _heuristic_risk(transaction_obj):
         score += Decimal("20")
         reasons.append("High absolute amount.")
 
-    thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
     # Compare against recent behavior to reduce false positives from user-specific spending patterns.
     recent_expenses = Transaction.objects.filter(
         user=transaction_obj.user,

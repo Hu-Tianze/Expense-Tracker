@@ -14,6 +14,7 @@ from django.core.mail import send_mail
 from django.db import transaction
 from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.core.paginator import Paginator
 from contextlib import nullcontext
 import logging
@@ -364,9 +365,10 @@ def register(request):
         })
         
         otp_key = f"finance:reg_otp:{email}"
-        real_code = cache.get(otp_key)
-        
-        if not real_code or code_input != str(real_code):
+        stored_hash = cache.get(otp_key)
+        input_hash = hashlib.sha256((code_input or "").encode("utf-8")).hexdigest()
+
+        if not stored_hash or input_hash != stored_hash:
             messages.error(request, "Code has expired or is incorrect.")
             return render(request, 'registration/register.html', context)
 
@@ -393,24 +395,29 @@ def register(request):
 
 @require_POST
 def send_code(request):
-    email = request.POST.get('email')
+    email = (request.POST.get('email') or '').strip()
     if not email:
         return JsonResponse({'status': 'error', 'code': 'missing_email', 'message': 'Email required'}, status=400)
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({'status': 'error', 'code': 'invalid_email', 'message': 'Invalid email address'}, status=400)
 
     lock_key = f"otp_lock:reg:{email}"
     if cache.get(lock_key):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
 
     code = random.randint(100000, 999999)
+    code_hash = hashlib.sha256(str(code).encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=email,
-        code_hash=hashlib.sha256(str(code).encode("utf-8")).hexdigest(),
+        code_hash=code_hash,
         purpose="register",
         expires_at=timezone.now() + timedelta(seconds=OTP_REGISTER_TTL_SECONDS),
         send_ip=request.META.get("REMOTE_ADDR"),
     )
-    # Store active OTP in cache for fast validation; keep hashed copy in DB for audit traceability.
-    cache.set(f"finance:reg_otp:{email}", code, timeout=OTP_REGISTER_TTL_SECONDS)
+    # Store hash in cache so plaintext OTP is never persisted outside memory.
+    cache.set(f"finance:reg_otp:{email}", code_hash, timeout=OTP_REGISTER_TTL_SECONDS)
     cache.set(lock_key, True, timeout=OTP_RATE_LIMIT_SECONDS)
     try:
         _send_otp_email(
@@ -435,7 +442,7 @@ def transaction_list(request):
     _ensure_starter_categories(request.user)
     base_items = Transaction.objects.filter(user=request.user).select_related("category")
     filters = _parse_transaction_filters(request)
-    filtered_items = _apply_transaction_filters(base_items.order_by('-occurred_at'), filters, request)
+    filtered_items = _apply_transaction_filters(base_items, filters, request)
     paginator = Paginator(filtered_items, TRANSACTION_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
     items = page_obj.object_list
@@ -634,14 +641,15 @@ def send_delete_code(request):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
     
     code = f"{random.randint(100000, 999999)}"
+    code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=request.user.email,
-        code_hash=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+        code_hash=code_hash,
         purpose="delete_account",
         expires_at=timezone.now() + timedelta(seconds=OTP_ACCOUNT_ACTION_TTL_SECONDS),
         send_ip=request.META.get("REMOTE_ADDR"),
     )
-    cache.set(f"finance:del_otp:{request.user.id}", code, timeout=OTP_ACCOUNT_ACTION_TTL_SECONDS)
+    cache.set(f"finance:del_otp:{request.user.id}", code_hash, timeout=OTP_ACCOUNT_ACTION_TTL_SECONDS)
     cache.set(lock_key, True, timeout=OTP_RATE_LIMIT_SECONDS)
     try:
         _send_otp_email(
@@ -674,9 +682,10 @@ def delete_account(request):
                 
             input_code = request.POST.get('code')
             otp_key = f"finance:del_otp:{request.user.id}"
-            real_code = cache.get(otp_key)
-            
-            if real_code and input_code == str(real_code):
+            stored_hash = cache.get(otp_key)
+            input_hash = hashlib.sha256((input_code or "").encode("utf-8")).hexdigest()
+
+            if stored_hash and input_hash == stored_hash:
                 with transaction.atomic():
                     cache.delete(otp_key)
                     request.user.delete()
@@ -695,14 +704,15 @@ def send_pwd_code(request):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
     
     code = f"{random.randint(100000, 999999)}"
+    code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=request.user.email,
-        code_hash=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+        code_hash=code_hash,
         purpose="change_password",
         expires_at=timezone.now() + timedelta(seconds=OTP_ACCOUNT_ACTION_TTL_SECONDS),
         send_ip=request.META.get("REMOTE_ADDR"),
     )
-    cache.set(f"finance:pwd_otp:{request.user.id}", code, timeout=OTP_ACCOUNT_ACTION_TTL_SECONDS)
+    cache.set(f"finance:pwd_otp:{request.user.id}", code_hash, timeout=OTP_ACCOUNT_ACTION_TTL_SECONDS)
     cache.set(lock_key, True, timeout=OTP_RATE_LIMIT_SECONDS)
     try:
         _send_otp_email(
@@ -728,9 +738,10 @@ def change_password(request):
         code = request.POST.get('code')
         new_password = request.POST.get('new_password')
         otp_key = f"finance:pwd_otp:{request.user.id}"
-        real_code = cache.get(otp_key)
-        
-        if real_code and code == str(real_code):
+        stored_hash = cache.get(otp_key)
+        input_hash = hashlib.sha256((code or "").encode("utf-8")).hexdigest()
+
+        if stored_hash and input_hash == stored_hash:
             try:
                 validate_password(new_password, request.user)
             except ValidationError as exc:
