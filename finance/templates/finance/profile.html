@@ -66,7 +66,7 @@
         <aside class="profile-left">
             <section class="profile-glass profile-card identity-card">
                 <div class="identity-avatar">{{ user.name|default:"U"|first|upper }}</div>
-                <h2>{{ user.name|default:"Tango User" }}</h2>
+                <h1 class="identity-name">{{ user.name|default:"Tango User" }}</h1>
                 <p>{{ user.email }}</p>
                 <div class="identity-badges">
                     <span>Active User</span>

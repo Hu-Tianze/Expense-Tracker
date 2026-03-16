@@ -315,6 +315,7 @@ body {
     border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
+.identity-card h1,
 .identity-card h2 {
     margin: 0;
     font-size: 1.25rem;
