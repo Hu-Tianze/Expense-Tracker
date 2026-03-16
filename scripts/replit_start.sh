@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Sync DB schema directly from models, bypassing migration history conflicts.
-python manage.py migrate --run-syncdb
+# Apply all pending migrations on each boot.
+python manage.py migrate --noinput
 
 # Replit exposes the service port via $PORT.
 exec gunicorn django_finances.wsgi:application \
