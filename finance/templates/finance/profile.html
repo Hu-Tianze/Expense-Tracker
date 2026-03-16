@@ -53,7 +53,7 @@
                     <div class="account-menu-avatar">{{ user.name|default:"U"|first|upper }}</div>
                     <div class="account-menu-hello">Hi, {{ user.name|default:"Tango User" }}!</div>
                     <div class="account-menu-actions">
-                        <a href="{% url 'finance:profile' %}#security-section">Security</a>
+                        <a href="{% url 'finance:profile' %}#security-section">Settings</a>
                         <a href="{% url 'finance:export_csv' %}" data-no-transition="true">Export CSV</a>
                     </div>
                     <a href="{% url 'finance:signout' %}" class="account-menu-signout" data-no-transition="true">Sign out</a>
@@ -160,7 +160,7 @@
             </section>
 
             <section class="profile-glass profile-card section-card">
-                <h3><i class="bi bi-shield-lock"></i> Security</h3>
+                <h3><i class="bi bi-shield-lock"></i> Settings</h3>
                 <div class="security-actions">
                     <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                         Change Account Password
