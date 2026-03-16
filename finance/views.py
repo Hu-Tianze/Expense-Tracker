@@ -18,7 +18,7 @@ from django.core.validators import validate_email
 from django.core.paginator import Paginator
 from contextlib import nullcontext
 import logging
-import random
+import secrets
 import csv
 import json
 import requests  
@@ -383,6 +383,9 @@ def register(request):
             return render(request, 'registration/register.html', context)
 
         User.objects.create_user(email=email, password=password, name=nickname)
+        UserEmailOTP.objects.filter(
+            email=email, purpose="register", used_at__isnull=True
+        ).order_by("-created_at").update(used_at=timezone.now())
         cache.delete(otp_key)
         user = authenticate(request, username=email, password=password)
         if user is not None:
@@ -407,7 +410,7 @@ def send_code(request):
     if cache.get(lock_key):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
 
-    code = random.randint(100000, 999999)
+    code = secrets.randbelow(900000) + 100000
     code_hash = hashlib.sha256(str(code).encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=email,
@@ -640,7 +643,7 @@ def send_delete_code(request):
     if cache.get(lock_key):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
     
-    code = f"{random.randint(100000, 999999)}"
+    code = str(secrets.randbelow(900000) + 100000)
     code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=request.user.email,
@@ -687,6 +690,9 @@ def delete_account(request):
 
             if stored_hash and input_hash == stored_hash:
                 with transaction.atomic():
+                    UserEmailOTP.objects.filter(
+                        email=request.user.email, purpose="delete_account", used_at__isnull=True
+                    ).order_by("-created_at").update(used_at=timezone.now())
                     cache.delete(otp_key)
                     request.user.delete()
                 return redirect('login')
@@ -703,7 +709,7 @@ def send_pwd_code(request):
     if cache.get(lock_key):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
     
-    code = f"{random.randint(100000, 999999)}"
+    code = str(secrets.randbelow(900000) + 100000)
     code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
     otp_record = UserEmailOTP.objects.create(
         email=request.user.email,
@@ -752,6 +758,9 @@ def change_password(request):
                 user = request.user
                 user.set_password(new_password)
                 user.save()
+                UserEmailOTP.objects.filter(
+                    email=user.email, purpose="change_password", used_at__isnull=True
+                ).order_by("-created_at").update(used_at=timezone.now())
                 from django.contrib.auth import update_session_auth_hash
                 update_session_auth_hash(request, user)
                 cache.delete(otp_key)
@@ -768,7 +777,7 @@ def export_csv(request):
     response['Content-Disposition'] = f'attachment; filename="tango_{date.today()}.csv"'
     writer = csv.writer(response)
     writer.writerow(['Date', 'Type', 'Category', 'Amount', 'Currency', 'Amount(GBP)', 'Note'])
-    for t in Transaction.objects.filter(user=request.user).order_by('-occurred_at'):
+    for t in Transaction.objects.filter(user=request.user).select_related("category").order_by('-occurred_at'):
         writer.writerow([t.occurred_at, t.type, t.category.name if t.category else 'General',
                          t.original_amount, t.currency, t.amount_in_gbp, t.note])
     return response
