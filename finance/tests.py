@@ -1,3 +1,4 @@
+import hashlib
 from decimal import Decimal
 from datetime import timedelta
 from django.test import TestCase
@@ -256,7 +257,7 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertIn("Security check failed", response.json()["message"])
 
     def test_register_rejects_weak_password(self):
-        cache.set("finance:reg_otp:weak@example.com", "123456", timeout=600)
+        cache.set("finance:reg_otp:weak@example.com", hashlib.sha256(b"123456").hexdigest(), timeout=600)
         response = self.client.post(
             reverse("finance:register"),
             {
@@ -271,7 +272,7 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertContains(response, "uppercase")
 
     def test_register_success_logs_user_in_and_redirects_dashboard(self):
-        cache.set("finance:reg_otp:newuser@example.com", "123456", timeout=600)
+        cache.set("finance:reg_otp:newuser@example.com", hashlib.sha256(b"123456").hexdigest(), timeout=600)
         response = self.client.post(
             reverse("finance:register"),
             {
