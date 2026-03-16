@@ -9,9 +9,13 @@ function handleOtpRequest(btnId, statusId, url, modalId) {
     const btn = document.getElementById(btnId);
     const status = document.getElementById(statusId);
     const tokenField = document.querySelector(`#${modalId} [name="cf-turnstile-response"]`);
+    const hasTurnstileWidget = !!tokenField;
     const turnstileResponse = tokenField ? tokenField.value : '';
 
-    if (!turnstileResponse) {
+    const config = document.getElementById('profile-config');
+    const turnstileEnabled = config && config.dataset.turnstileEnabled === '1';
+
+    if (turnstileEnabled && hasTurnstileWidget && !turnstileResponse) {
         alert('Please complete the security check first!');
         return;
     }
@@ -59,6 +63,10 @@ function handleOtpRequest(btnId, statusId, url, modalId) {
 document.addEventListener('DOMContentLoaded', () => {
     const config = document.getElementById('profile-config');
     if (!config) return;
+    const topMenus = document.querySelectorAll('.profile-top-menu');
+    const profileForm = document.getElementById('profileForm');
+    const stickyBar = document.getElementById('profileStickyBar');
+    const cancelBtn = document.getElementById('profileCancelBtn');
 
     const sendPwdBtn = document.getElementById('btnSendPwdOTP');
     const sendDeleteBtn = document.getElementById('btnSendDeleteOTP');
@@ -78,4 +86,67 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    if (topMenus.length) {
+        const closeMenu = (menu) => {
+            menu.removeAttribute('open');
+            menu.classList.remove('is-open');
+            const toggle = menu.querySelector('[data-menu-toggle]');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        };
+        const openMenu = (menu) => {
+            menu.classList.add('is-open');
+            const toggle = menu.querySelector('[data-menu-toggle]');
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        };
+
+        document.addEventListener('click', (event) => {
+            const toggleBtn = event.target.closest('[data-menu-toggle]');
+            if (toggleBtn) {
+                const menu = toggleBtn.closest('.profile-top-menu');
+                const willOpen = menu && !menu.classList.contains('is-open');
+                topMenus.forEach((node) => closeMenu(node));
+                if (menu && willOpen) openMenu(menu);
+                return;
+            }
+            topMenus.forEach((menu) => {
+                if (!menu.contains(event.target)) closeMenu(menu);
+            });
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                topMenus.forEach((menu) => closeMenu(menu));
+            }
+        });
+    }
+
+    if (profileForm && stickyBar) {
+        const controls = Array.from(profileForm.querySelectorAll('input, select, textarea'))
+            .filter((el) => !el.disabled);
+        const initialValues = new Map(controls.map((el) => [el.name || el.id, el.value]));
+
+        const isDirty = () => controls.some((el) => initialValues.get(el.name || el.id) !== el.value);
+        const refreshSticky = () => {
+            if (isDirty()) {
+                stickyBar.classList.remove('profile-sticky-hidden');
+            } else {
+                stickyBar.classList.add('profile-sticky-hidden');
+            }
+        };
+
+        controls.forEach((el) => {
+            el.addEventListener('input', refreshSticky);
+            el.addEventListener('change', refreshSticky);
+        });
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                controls.forEach((el) => {
+                    el.value = initialValues.get(el.name || el.id) || '';
+                });
+                refreshSticky();
+            });
+        }
+        refreshSticky();
+    }
 });

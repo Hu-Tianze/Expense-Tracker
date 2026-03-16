@@ -23,6 +23,8 @@ class User(AbstractUser):
     gender = models.CharField('Gender', max_length=10, blank=True, null=True)
     phone = models.CharField('Tel', max_length=20, blank=True, null=True)
     role = models.CharField('Role', max_length=10, default='user')
+    preferred_currency = models.CharField(max_length=3, default='GBP')
+    preferred_timezone = models.CharField(max_length=64, default='UTC')
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name']
     objects = MyUserManager()

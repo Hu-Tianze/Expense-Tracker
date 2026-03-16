@@ -2,17 +2,18 @@
 {% load static %}
 
 {% block title %}Profile - Tango Finance{% endblock %}
-{% block nav_profile_active %}active{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'finance/css/profile.css' %}?v=20260311-ocean-profile1">
+<link rel="stylesheet" href="{% static 'finance/css/profile.css' %}?v=20260316-ocean-profile5">
 {% endblock %}
 
 {% block head_extra %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+{% if turnstile_enabled %}
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -31,8 +32,36 @@
             <a class="active" href="{% url 'finance:profile' %}">Profile</a>
         </nav>
         <div class="capsule-user">
-            <i class="bi bi-bell"></i>
-            <span class="capsule-avatar">{{ user.name|default:"U"|first|upper }}</span>
+            <details class="profile-top-menu">
+                <summary class="profile-top-trigger" aria-label="Open notifications">
+                    <i class="bi bi-bell"></i>
+                </summary>
+                <div class="profile-top-panel">
+                    <div class="profile-top-title">Notifications</div>
+                    <ul class="profile-top-list">
+                        {% if month_net < 0 %}
+                        <li>Monthly net is below zero.</li>
+                        {% else %}
+                        <li>No critical alerts. You're all caught up.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </details>
+            <div class="account-menu" data-account-menu>
+                <button type="button" class="profile-top-trigger capsule-avatar-link account-menu-trigger" data-account-menu-toggle aria-label="Open account menu" aria-expanded="false">
+                    <span class="capsule-avatar">{{ user.name|default:"U"|first|upper }}</span>
+                </button>
+                <div class="account-menu-panel" data-account-menu-panel hidden>
+                    <div class="account-menu-email">{{ user.email }}</div>
+                    <div class="account-menu-avatar">{{ user.name|default:"U"|first|upper }}</div>
+                    <div class="account-menu-hello">Hi, {{ user.name|default:"Tango User" }}!</div>
+                    <div class="account-menu-actions">
+                        <a href="{% url 'finance:profile' %}#security-section">Security</a>
+                        <a href="{% url 'finance:export_csv' %}" data-no-transition="true">Export CSV</a>
+                    </div>
+                    <a href="{% url 'finance:signout' %}" class="account-menu-signout" data-no-transition="true">Sign out</a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -90,25 +119,28 @@
                     </label>
                     <label>
                         <span>Preferred Currency</span>
-                        <select>
-                            <option>GBP (£) - British Pound</option>
-                            <option>USD ($) - US Dollar</option>
-                            <option>CNY (¥) - Chinese Yuan</option>
-                            <option>EUR (€) - Euro</option>
+                        <select name="preferred_currency">
+                            {% for code in currency_choices %}
+                            <option value="{{ code }}" {% if user.preferred_currency == code %}selected{% endif %}>
+                                {{ code }}
+                            </option>
+                            {% endfor %}
                         </select>
                     </label>
                     <label>
                         <span>Timezone</span>
-                        <select>
-                            <option>(GMT+00:00) London</option>
-                            <option>(GMT+08:00) Beijing</option>
-                            <option>(GMT-08:00) Pacific Time</option>
+                        <select name="preferred_timezone">
+                            {% for tz in timezone_choices %}
+                            <option value="{{ tz }}" {% if user.preferred_timezone == tz %}selected{% endif %}>
+                                {{ tz }}
+                            </option>
+                            {% endfor %}
                         </select>
                     </label>
                 </div>
             </form>
 
-            <section class="profile-glass profile-card section-card">
+            <section class="profile-glass profile-card section-card" id="security-section">
                 <h3><i class="bi bi-tags"></i> Categories</h3>
                 <form action="{% url 'finance:add_category' %}" method="post" class="category-add-form">
                     {% csrf_token %}
@@ -136,11 +168,10 @@
                     <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                         Change Account Password
                     </button>
-                    <a href="{% url 'finance:export_csv' %}" class="btn btn-outline-light">Export Transactions to CSV</a>
                 </div>
             </section>
 
-            <section class="danger-card">
+            <section class="danger-card" id="danger-zone">
                 <h3><i class="bi bi-exclamation-triangle"></i> Danger Zone</h3>
                 <p>Once you deactivate your account, all your data will be permanently removed. This action is irreversible.</p>
                 <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Deactivate Account</button>
@@ -149,11 +180,11 @@
     </div>
 </main>
 
-<footer class="profile-sticky-actions">
+<footer class="profile-sticky-actions profile-sticky-hidden" id="profileStickyBar">
     <div class="profile-glass sticky-inner">
-        <p>Only nickname is persisted right now. Other fields are UI placeholders.</p>
+        <p>You have unsaved changes.</p>
         <div>
-            <a href="{% url 'finance:transaction_list' %}" class="btn btn-outline-light">Cancel</a>
+            <button type="button" class="btn btn-outline-light" id="profileCancelBtn">Cancel</button>
             <button type="submit" form="profileForm" class="btn btn-info">Save Changes</button>
         </div>
     </div>
@@ -171,9 +202,11 @@
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">Verification for: <strong>{{ user.email }}</strong></p>
 
+                    {% if turnstile_enabled %}
                     <div class="mb-3 border-bottom pb-3">
                         <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
                     </div>
+                    {% endif %}
 
                     <div class="mb-3">
                         <label class="form-label fw-bold text-muted text-uppercase">Verification Code</label>
@@ -209,9 +242,11 @@
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">Verify deletion for: <strong>{{ user.email }}</strong></p>
 
+                    {% if turnstile_enabled %}
                     <div class="mb-3 border-bottom pb-3">
                         <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
                     </div>
+                    {% endif %}
 
                     <div class="mb-3 mt-3">
                         <label class="form-label fw-bold text-muted text-uppercase">Verification Code</label>
@@ -237,10 +272,12 @@
 
 <div id="profile-config"
      data-send-pwd-url="{% url 'finance:send_pwd_code' %}"
-     data-send-delete-url="{% url 'finance:send_delete_code' %}">
+     data-send-delete-url="{% url 'finance:send_delete_code' %}"
+     data-turnstile-enabled="{% if turnstile_enabled %}1{% else %}0{% endif %}">
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'finance/js/profile.js' %}?v=20260311-ocean-profile1"></script>
+<script src="{% static 'finance/js/profile.js' %}?v=20260316-profile-menu-savebar3"></script>
 {% endblock %}

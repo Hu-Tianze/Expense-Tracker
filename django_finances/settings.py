@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 import importlib.util
 import sys
+from django.core.exceptions import ImproperlyConfigured
 
 try:
     from dotenv import load_dotenv
@@ -30,9 +31,25 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-78$%8wt&^z17$6m$svheapx5lj916_9)as@fu=abki=^#0eid^')
+APP_ENV = os.getenv("APP_ENV", "local").strip().lower()
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+
+def _to_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+DEBUG = _to_bool(os.getenv("DEBUG"), default=APP_ENV in {"local", "dev", "development", "test"})
+if APP_ENV in {"prod", "production"}:
+    DEBUG = False
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "dev-only-secret-key-change-before-production"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DEBUG is False")
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
@@ -162,8 +179,17 @@ if importlib.util.find_spec("whitenoise") and not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 AUTH_USER_MODEL = 'user.User'  
 
-# Use console backend in local development.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _to_bool(os.getenv("EMAIL_USE_TLS"), default=True)
+EMAIL_USE_SSL = _to_bool(os.getenv("EMAIL_USE_SSL"), default=False)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@tango-finance.local")
 
 LOGIN_REDIRECT_URL = '/finance/'
 
@@ -206,9 +232,23 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
+    'EXCEPTION_HANDLER': 'finance.api_exceptions.custom_exception_handler',
 }
 
+CSRF_FAILURE_VIEW = "django_finances.views.csrf_failure"
+
+CF_TURNSTILE_SECRET_KEY = os.getenv("CF_TURNSTILE_SECRET_KEY", "").strip()
+CF_TURNSTILE_SITE_KEY = os.getenv("CF_TURNSTILE_SITE_KEY", "").strip()
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+AI_API_BASE_URL = os.getenv("AI_API_BASE_URL", "https://api.groq.com/openai/v1/chat/completions").strip()
+AI_CHAT_MODEL = os.getenv("AI_CHAT_MODEL", "llama-3.1-8b-instant").strip()
+
 RUNNING_TESTS = "test" in sys.argv
+TURNSTILE_ENABLED = _to_bool(
+    os.getenv("TURNSTILE_ENABLED"),
+    default=(not DEBUG) or RUNNING_TESTS,
+)
 
 if not DEBUG and not RUNNING_TESTS:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

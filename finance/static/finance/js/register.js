@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lower: document.getElementById('rule-lower'),
         special: document.getElementById('rule-special'),
     };
+    const turnstileEnabled = config.dataset.turnstileEnabled === '1';
 
     let countdown = 60;
     let timer = null;
@@ -61,14 +62,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#send-btn').click(() => {
         const email = $('#email').val();
-        const cfToken = $('[name="cf-turnstile-response"]').val();
+        const tokenField = $('[name="cf-turnstile-response"]');
+        const hasTurnstileWidget = tokenField.length > 0;
+        const cfToken = tokenField.val();
 
         if (!email) {
             alert('Please enter a valid email address first.');
             return;
         }
 
-        if (!cfToken) {
+        if (turnstileEnabled && hasTurnstileWidget && !cfToken) {
             alert('Please complete the security check first!');
             return;
         }

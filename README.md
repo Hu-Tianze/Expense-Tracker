@@ -95,6 +95,22 @@ If not using Blueprint, create a Python web service and set:
 - Build command: `./build.sh`
 - Start command: `gunicorn django_finances.wsgi:application`
 
+## Replit Deployment
+This repository includes:
+- `.replit`
+- `scripts/replit_start.sh`
+
+Steps:
+1. Import the GitHub repo into Replit.
+2. Add Secrets:
+   - `DJANGO_SECRET_KEY` (required)
+   - `DEBUG=False`
+   - `ALLOWED_HOSTS=<your-replit-domain>,127.0.0.1,localhost`
+   - `CSRF_TRUSTED_ORIGINS=https://<your-replit-domain>`
+   - `CF_TURNSTILE_SECRET_KEY` (required for OTP/captcha flows)
+   - Optional: `GROQ_API_KEY`, `ENABLE_LLM_RISK`
+3. Click **Run**. Replit will install dependencies, run migrations, collect static files, and start Gunicorn on `$PORT`.
+
 ## API Endpoints (Authenticated)
 - `POST /finance/api/agent/transaction/`
 - `POST /finance/api/chat/`

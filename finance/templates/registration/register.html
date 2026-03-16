@@ -9,7 +9,9 @@
 
 {% block head_extra %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% if turnstile_enabled %}
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -20,16 +22,29 @@
             <div class="card auth-card border-0">
                 <div class="card-body p-4">
                     <h2 class="h4 auth-title mb-3">User Registration</h2>
-                    <form method="post">
+                    <form method="post" autocomplete="off">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="email" class="form-label">Email Address</label>
-                            <input type="email" name="email" id="email" class="form-control" placeholder="e.g. user@example.com" required>
+                            <input
+                                type="email"
+                                name="email"
+                                id="email"
+                                class="form-control"
+                                placeholder="e.g. user@example.com"
+                                value="{{ register_form.email }}"
+                                autocomplete="off"
+                                autocapitalize="none"
+                                spellcheck="false"
+                                required
+                            >
                         </div>
 
+                        {% if turnstile_enabled %}
                         <div class="mb-3">
                             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
                         </div>
+                        {% endif %}
 
                         <div class="mb-3">
                             <button type="button" id="send-btn" class="btn btn-outline-primary">Get a One-Time Code</button>
@@ -37,12 +52,31 @@
 
                         <div class="mb-3">
                             <label for="name" class="form-label">Nickname</label>
-                            <input type="text" name="name" id="name" class="form-control" placeholder="How should I call you?" required>
+                            <input
+                                type="text"
+                                name="name"
+                                id="name"
+                                class="form-control"
+                                placeholder="How should I call you?"
+                                value="{{ register_form.name }}"
+                                autocomplete="off"
+                                required
+                            >
                         </div>
 
                         <div class="mb-3">
                             <label for="code" class="form-label">Verification Code</label>
-                            <input type="text" name="code" id="code" class="form-control" placeholder="Enter 6-digit code" required>
+                            <input
+                                type="text"
+                                name="code"
+                                id="code"
+                                class="form-control"
+                                placeholder="Enter 6-digit code"
+                                value="{{ register_form.code }}"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                required
+                            >
                         </div>
 
                         <div class="mb-3">
@@ -70,10 +104,11 @@
 </div>
 <div id="register-config"
      data-send-code-url="{% url 'finance:send_code' %}"
-     data-csrf-token="{{ csrf_token }}">
+     data-csrf-token="{{ csrf_token }}"
+     data-turnstile-enabled="{% if turnstile_enabled %}1{% else %}0{% endif %}">
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'finance/js/register.js' %}?v=20260310-register1"></script>
+<script src="{% static 'finance/js/register.js' %}?v=20260314-register-debug-bypass1"></script>
 {% endblock %}

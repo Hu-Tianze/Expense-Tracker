@@ -1,29 +1,61 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const storageKey = 'tango_sidebar_collapsed';
+    function initAccountMenus() {
+        const menus = document.querySelectorAll('[data-account-menu]');
+        if (!menus.length) return;
 
-    function initSidebarToggle() {
-        const btn = document.getElementById('sidebarToggleBtn');
-        if (!btn) return;
-        const icon = btn.querySelector('i');
+        const closeMenu = (menu) => {
+            const panel = menu.querySelector('[data-account-menu-panel]');
+            const trigger = menu.querySelector('[data-account-menu-toggle]');
+            if (panel) panel.hidden = true;
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        };
 
-        function updateIcon() {
-            const collapsed = document.body.classList.contains('sidebar-collapsed');
-            if (!icon) return;
-            icon.className = collapsed ? 'bi bi-chevron-right' : 'bi bi-chevron-left';
-        }
+        const openMenu = (menu) => {
+            menus.forEach((node) => closeMenu(node));
+            const panel = menu.querySelector('[data-account-menu-panel]');
+            const trigger = menu.querySelector('[data-account-menu-toggle]');
+            if (!panel || !trigger) return;
+            panel.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
+        };
 
-        const saved = window.localStorage.getItem(storageKey);
-        if (saved === '1') {
-            document.body.classList.add('sidebar-collapsed');
-        }
-        updateIcon();
-
-        btn.addEventListener('click', () => {
-            document.body.classList.toggle('sidebar-collapsed');
-            const collapsed = document.body.classList.contains('sidebar-collapsed');
-            window.localStorage.setItem(storageKey, collapsed ? '1' : '0');
-            updateIcon();
+        document.addEventListener('click', (event) => {
+            const toggle = event.target.closest('[data-account-menu-toggle]');
+            if (toggle) {
+                const menu = toggle.closest('[data-account-menu]');
+                const panel = menu ? menu.querySelector('[data-account-menu-panel]') : null;
+                const willOpen = !!(panel && panel.hidden);
+                if (menu && willOpen) openMenu(menu);
+                else if (menu) closeMenu(menu);
+                return;
+            }
+            menus.forEach((menu) => {
+                if (!menu.contains(event.target)) closeMenu(menu);
+            });
         });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                menus.forEach((menu) => closeMenu(menu));
+            }
+        });
+
+    }
+
+    function initLogoutTriggers() {
+        document.addEventListener('click', (evt) => {
+            const trigger = evt.target.closest('[data-logout-trigger="true"]');
+            if (!trigger) return;
+
+            evt.preventDefault();
+            evt.stopPropagation();
+
+            const formId = trigger.dataset.logoutFormId;
+            if (!formId) return;
+            const logoutForm = document.getElementById(formId);
+            if (!logoutForm) return;
+            logoutForm.submit();
+        }, true);
     }
 
     function createTransitionOverlay() {
@@ -48,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (anchor.hasAttribute('data-bs-toggle')) return false;
         const url = new URL(anchor.href, window.location.origin);
         if (url.origin !== window.location.origin) return false;
+        // File download endpoints should not trigger page-leaving overlays.
+        if (url.pathname.endsWith('/finance/export/')) return false;
         if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return false;
         return true;
     }
@@ -82,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, true);
     }
 
-    initSidebarToggle();
+    initAccountMenus();
+    initLogoutTriggers();
     initPageTransitions();
 });

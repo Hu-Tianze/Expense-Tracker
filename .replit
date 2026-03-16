@@ -1,0 +1,9 @@
+entrypoint = "manage.py"
+modules = ["python-3.12"]
+
+run = "bash scripts/replit_start.sh"
+
+[deployment]
+run = ["bash", "scripts/replit_start.sh"]
+deploymentTarget = "autoscale"
+

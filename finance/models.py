@@ -1,4 +1,3 @@
-from django.db import models
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
@@ -67,6 +66,9 @@ class Transaction(models.Model):
         indexes = [
             models.Index(fields=['user', 'occurred_at']),
             models.Index(fields=['user', 'category', 'occurred_at']),
+            models.Index(fields=['user', 'type', 'occurred_at']),
+            models.Index(fields=['user', 'original_amount']),
+            models.Index(fields=['user', 'amount_in_gbp']),
         ]
         constraints = [
             models.CheckConstraint(condition=models.Q(original_amount__gt=0), name='amount_gt_0'),
@@ -88,20 +90,6 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.occurred_at.date()} - {self.currency} {self.original_amount}"
 
-class EmailOTP(models.Model):
-    email = models.EmailField(verbose_name="Email Address")
-    otp_code = models.CharField(max_length=6, verbose_name="OTP Code")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")
-
-    class Meta:
-        verbose_name = "Email OTP"
-        verbose_name_plural = "Email OTPs"
-        indexes = [
-            models.Index(fields=['email', 'created_at']),
-        ]
-
-    def __str__(self):
-        return f"{self.email} - {self.otp_code} at {self.created_at}"
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         ('LOGIN', 'User Login'),

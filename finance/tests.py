@@ -1,14 +1,17 @@
 from decimal import Decimal
+from datetime import timedelta
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.test.utils import override_settings
+from django.utils.http import urlencode
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
 from finance.models import Category, Transaction, RiskAlert
 from finance.utils import get_exchange_rate
+from finance.constants import TRANSACTION_PAGE_SIZE
 from user.models import User
 from user.models import EmailOTP as UserEmailOTP
 
@@ -101,6 +104,22 @@ class FinanceViewsTests(TestCase):
         )
         response = self.client.get(reverse("finance:edit_transaction", args=[foreign_tx.id]))
         self.assertEqual(response.status_code, 404)
+
+    def test_transaction_list_paginates_and_preserves_query(self):
+        for i in range(TRANSACTION_PAGE_SIZE + 1):
+            Transaction.objects.create(
+                user=self.user,
+                category=self.category,
+                original_amount=Decimal("3.00"),
+                currency="GBP",
+                type="Expense",
+                note=f"coffee {i}",
+                occurred_at=timezone.now() - timedelta(minutes=i),
+            )
+        response = self.client.get(reverse("finance:transaction_list"), {"q": "coffee", "page": 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["page_obj"].paginator.num_pages, 2)
+        self.assertEqual(response.context["query_string_without_page"], "q=coffee")
 
 
 class FinanceApiTests(TestCase):
@@ -206,7 +225,7 @@ class FinanceRateAndOtpTests(TestCase):
         )
         self.assertEqual(first.status_code, 200)
         self.assertEqual(first.json()["status"], "success")
-        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.status_code, 429)
         self.assertEqual(second.json()["status"], "error")
         self.assertIn("Wait 60s", second.json()["message"])
 
@@ -232,7 +251,7 @@ class FinanceRateAndOtpTests(TestCase):
             reverse("finance:send_code"),
             {"email": "newuser@example.com", "cf_token": "bad"},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["status"], "error")
         self.assertIn("Security check failed", response.json()["message"])
 
@@ -250,6 +269,38 @@ class FinanceRateAndOtpTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(email="weak@example.com").exists())
         self.assertContains(response, "uppercase")
+
+    def test_register_success_logs_user_in_and_redirects_dashboard(self):
+        cache.set("finance:reg_otp:newuser@example.com", "123456", timeout=600)
+        response = self.client.post(
+            reverse("finance:register"),
+            {
+                "email": "newuser@example.com",
+                "name": "New User",
+                "password": "StrongPass123!",
+                "code": "123456",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("finance:transaction_list"))
+        self.assertTrue(User.objects.filter(email="newuser@example.com").exists())
+        follow = self.client.get(reverse("finance:transaction_list"))
+        self.assertEqual(follow.status_code, 200)
+
+    def test_register_invalid_otp_keeps_entered_values(self):
+        response = self.client.post(
+            reverse("finance:register"),
+            {
+                "email": "keep@example.com",
+                "name": "Keep User",
+                "password": "StrongPass123!",
+                "code": "111111",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="keep@example.com"')
+        self.assertContains(response, 'value="Keep User"')
+        self.assertContains(response, 'value="111111"')
 
     def test_risk_alert_created_for_abnormal_expense(self):
         Transaction.objects.create(
@@ -273,3 +324,35 @@ class FinanceRateAndOtpTests(TestCase):
         alert = RiskAlert.objects.get(transaction=tx)
         self.assertIn(alert.risk_level, ["MEDIUM", "HIGH"])
         self.assertEqual(alert.status, "OPEN")
+
+
+@override_settings(DEBUG=False)
+class ErrorHandlingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="errors@example.com",
+            password="StrongPass123!",
+            name="Error User",
+        )
+
+    def test_unknown_api_path_returns_json_error(self):
+        response = self.client.get(
+            "/finance/api/not-exists/",
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["code"], "not_found")
+
+    def test_unknown_html_path_redirects_to_login_with_message(self):
+        response = self.client.get("/totally-missing-page/")
+        self.assertEqual(response.status_code, 302)
+        expected_next = reverse("finance:transaction_list")
+        expected_login = reverse("login")
+        self.assertEqual(response["Location"], f"{expected_login}?{urlencode({'next': expected_next})}")
+
+    def test_unknown_html_path_for_logged_in_user_redirects_to_dashboard(self):
+        self.client.login(username="errors@example.com", password="StrongPass123!")
+        response = self.client.get("/another-missing-page/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("finance:transaction_list"))

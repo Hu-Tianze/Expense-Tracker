@@ -9,6 +9,7 @@ urlpatterns = [
     path('add/', views.add_transaction, name='add_transaction'),
     path('profile/', views.profile_view, name='profile'),
     path('register/', views.register, name='register'),
+    path('signout/', views.signout_view, name='signout'),
     path('send_code/', views.send_code, name='send_code'),
     path('profile/category/add/', views.add_category, name='add_category'),
     path('profile/category/delete/<int:cat_id>/', views.delete_category, name='delete_category'),
@@ -21,4 +22,5 @@ urlpatterns = [
     path('profile/password/change/', views.change_password, name='change_password'),
     path('api/agent/transaction/', api_views.AgentTransactionAPI.as_view(), name='agent_api'),
     path('api/chat/', api_views.ChatAgentAPI.as_view(), name='chat_api'),
+    path('api/dashboard/state/', api_views.DashboardStateAPI.as_view(), name='dashboard_state_api'),
 ]

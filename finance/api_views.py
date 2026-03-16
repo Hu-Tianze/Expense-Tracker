@@ -1,18 +1,26 @@
 import requests
 import json
+from django.conf import settings
+from django.urls import reverse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
-from rest_framework import serializers
 from .models import Transaction
-from django.db import transaction, models
+from django.db import transaction, models, DatabaseError
 from django.utils import timezone
-from datetime import timedelta
-import os
+from datetime import timedelta, date
+from decimal import Decimal
 import logging
 from .services import create_transaction
 from .serializers import AgentTransactionRequestSerializer, ChatQuerySerializer
+from .constants import (
+    CURRENCY_CODES,
+    AI_CHAT_TIMEOUT_SECONDS,
+    ASSISTANT_NAME,
+    ASSISTANT_NOTE_PREFIX_CHAT,
+    ASSISTANT_NOTE_PREFIX_AGENT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +54,10 @@ class AgentTransactionAPI(APIView):
                 new_tx = create_transaction(
                     user=request.user,
                     amount=data.get('amount'),
-                    currency=data.get('currency', 'GBP'),
+                    currency=data.get('currency', CURRENCY_CODES[0]),
                     tx_type=data.get('type', 'Expense'),
                     note=data.get('note', ''),
-                    note_prefix='[AI Agent] ',
+                    note_prefix=ASSISTANT_NOTE_PREFIX_AGENT,
                     occurred_at=data.get('date') or timezone.now(),
                     category_name=cat_name,
                     type_context=f"{data.get('note', '')} {cat_name}",
@@ -57,9 +65,9 @@ class AgentTransactionAPI(APIView):
                 return Response({"status": "success", "transaction_id": new_tx.id})
         except ValueError:
             return api_error("Invalid amount format", 400, "invalid_amount")
-        except Exception:
-            logger.exception("Agent transaction create failed for user_id=%s", request.user.id)
-            return api_error("Internal server error", 500, "internal_error")
+        except DatabaseError:
+            logger.exception("Agent transaction database error for user_id=%s", request.user.id)
+            return api_error("Database write failed", 503, "database_unavailable")
 
 class ChatAgentAPI(APIView):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
@@ -71,12 +79,12 @@ class ChatAgentAPI(APIView):
             return serializer_error(serializer, "invalid_payload")
         user_query = serializer.validated_data["query"]
 
-        API_KEY = os.getenv("GROQ_API_KEY") 
+        api_key = settings.GROQ_API_KEY
         
-        if not API_KEY:
-            return api_error("AI service is not configured", 500, "ai_not_configured")
-        BASE_URL = "https://api.groq.com/openai/v1/chat/completions" 
-        MODEL_NAME = "llama-3.1-8b-instant"
+        if not api_key:
+            return api_error("AI service is not configured", 503, "ai_not_configured")
+        base_url = settings.AI_API_BASE_URL
+        model_name = settings.AI_CHAT_MODEL
 
         thirty_days_ago = timezone.now() - timedelta(days=30)
         recent_txs = Transaction.objects.filter(user=request.user, occurred_at__gte=thirty_days_ago)
@@ -99,7 +107,7 @@ class ChatAgentAPI(APIView):
         """
 
         payload = {
-            "model": MODEL_NAME,
+            "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query}
@@ -107,10 +115,10 @@ class ChatAgentAPI(APIView):
             "response_format": {"type": "json_object"},
             "stream": False
         }
-        headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
         try:
-            response = requests.post(BASE_URL, json=payload, headers=headers, timeout=20)
+            response = requests.post(base_url, json=payload, headers=headers, timeout=AI_CHAT_TIMEOUT_SECONDS)
             response.raise_for_status()
             res_json = response.json()
             ai_content = res_json['choices'][0]['message']['content']
@@ -124,17 +132,30 @@ class ChatAgentAPI(APIView):
                     new_tx = create_transaction(
                         user=request.user,
                         amount=record_data.get('amount'),
-                        currency=record_data.get('currency', 'GBP'),
+                        currency=record_data.get('currency', CURRENCY_CODES[0]),
                         tx_type=record_data.get('type', 'Expense'),
                         note=record_data.get('note', ''),
-                        note_prefix='[AI Chat] ',
+                        note_prefix=ASSISTANT_NOTE_PREFIX_CHAT,
                         occurred_at=record_data.get('date') or timezone.now(),
                         category_name=cat_name,
                         type_context=f"{user_query} {record_data.get('note', '')} {cat_name}",
                     )
                 return Response({
                     "type": "record", 
-                    "message": f"Got it! I've recorded £{new_tx.original_amount} under {cat_name}."
+                    "message": f"{ASSISTANT_NAME} recorded {new_tx.currency} {new_tx.original_amount} under {cat_name}.",
+                    "transaction": {
+                        "id": new_tx.id,
+                        "note": (new_tx.note or "General Record"),
+                        "category_name": new_tx.category.name if new_tx.category else "General",
+                        "type": new_tx.type,
+                        "currency": new_tx.currency,
+                        "original_amount": f"{new_tx.original_amount:.2f}",
+                        "amount_in_gbp": f"{new_tx.amount_in_gbp:.2f}",
+                        "occurred_at_short": timezone.localtime(new_tx.occurred_at).strftime("%b %d, %H:%M"),
+                        "occurred_at_full": timezone.localtime(new_tx.occurred_at).strftime("%b %d, %Y"),
+                        "edit_url": reverse("finance:edit_transaction", args=[new_tx.id]),
+                        "delete_url": reverse("finance:delete_transaction", args=[new_tx.id]),
+                    },
                 })
             else:
                 return Response({
@@ -142,6 +163,51 @@ class ChatAgentAPI(APIView):
                     "message": ai_data.get('analysis', "I couldn't process that.")
                 })
 
-        except Exception:
-            logger.exception("Chat agent failed for user_id=%s", request.user.id)
-            return api_error("Internal server error", 500, "internal_error")
+        except requests.RequestException:
+            logger.exception("Chat agent upstream request failed for user_id=%s", request.user.id)
+            return api_error("AI service is unavailable", 503, "ai_unavailable")
+        except (KeyError, TypeError, json.JSONDecodeError, ValueError):
+            logger.exception("Chat agent returned invalid payload for user_id=%s", request.user.id)
+            return api_error("AI response could not be parsed", 502, "ai_invalid_payload")
+        except DatabaseError:
+            logger.exception("Chat agent database error for user_id=%s", request.user.id)
+            return api_error("Database write failed", 503, "database_unavailable")
+
+
+class DashboardStateAPI(APIView):
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        base_items = Transaction.objects.filter(user=request.user).select_related("category")
+        today = date.today()
+        month_qs = base_items.filter(occurred_at__year=today.year, occurred_at__month=today.month)
+        month_income = month_qs.filter(type='Income').aggregate(models.Sum('amount_in_gbp'))['amount_in_gbp__sum'] or Decimal("0")
+        month_expense = month_qs.filter(type='Expense').aggregate(models.Sum('amount_in_gbp'))['amount_in_gbp__sum'] or Decimal("0")
+        month_net = month_income - month_expense
+
+        max_total = max(month_income, month_expense, Decimal("1"))
+        expense_progress = float((month_expense / max_total) * Decimal("100")) if max_total > 0 else 0.0
+        income_progress = float((month_income / max_total) * Decimal("100")) if max_total > 0 else 0.0
+
+        expense_stats = month_qs.filter(type='Expense').values('category__name').annotate(total=models.Sum('amount_in_gbp'))
+        chart_labels = [stat['category__name'] or 'General' for stat in expense_stats]
+        chart_data = [float(stat['total']) for stat in expense_stats]
+
+        total_count = base_items.count()
+
+        return Response({
+            "status": "success",
+            "metrics": {
+                "month_income": float(month_income),
+                "month_expense": float(month_expense),
+                "month_net": float(month_net),
+                "expense_progress": round(expense_progress, 1),
+                "income_progress": round(income_progress, 1),
+            },
+            "chart": {
+                "labels": chart_labels,
+                "data": chart_data,
+            },
+            "total_count": total_count,
+        })

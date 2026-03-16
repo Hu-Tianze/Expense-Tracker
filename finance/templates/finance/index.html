@@ -2,17 +2,13 @@
 {% load static %}
 
 {% block title %}Dashboard - Tango Finance{% endblock %}
-{% block nav_dashboard_active %}active{% endblock %}
+{% block bootstrap_js %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'finance/css/index.css' %}?v=20260312-ocean-ref5">
+<link rel="stylesheet" href="{% static 'finance/css/index.css' %}?v=20260316-ocean-ref20">
 {% endblock %}
 
 {% block head_extra %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -34,13 +30,52 @@
                 <a class="active" href="{% url 'finance:transaction_list' %}">Dashboard</a>
                 <a href="#recent-transactions">Transactions</a>
                 <a href="#kpi-column">Analytics</a>
-                <a href="{% url 'finance:profile' %}">Profile</a>
             </nav>
 
             <div class="top-actions">
-                <i class="bi bi-search"></i>
-                <i class="bi bi-bell"></i>
-                <div class="avatar-dot">{{ user.name|default:"U"|first|upper }}</div>
+                <form id="site-search-form" class="site-search-form" role="search" autocomplete="off">
+                    <i class="bi bi-search"></i>
+                    <input
+                        id="site-search-input"
+                        type="search"
+                        placeholder="Search features..."
+                        list="site-search-suggestions"
+                        aria-label="Search dashboard features"
+                    >
+                    <datalist id="site-search-suggestions">
+                        {% for entry in site_search_items %}
+                        <option value="{{ entry.value }}">{{ entry.label }}</option>
+                        {% endfor %}
+                    </datalist>
+                </form>
+                <details class="top-menu">
+                    <summary class="top-menu-trigger" aria-label="Open notifications">
+                        <i class="bi bi-bell"></i>
+                    </summary>
+                    <div class="top-menu-panel">
+                        <div class="top-menu-title">Notifications</div>
+                        <ul class="top-menu-list">
+                            {% for notice in notifications %}
+                            <li>{{ notice }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </details>
+                <div class="account-menu" data-account-menu>
+                    <button type="button" class="top-menu-trigger avatar-link account-menu-trigger" data-account-menu-toggle aria-label="Open account menu" aria-expanded="false">
+                        <div class="avatar-dot">{{ user.name|default:"U"|first|upper }}</div>
+                    </button>
+                    <div class="account-menu-panel" data-account-menu-panel hidden>
+                        <div class="account-menu-email">{{ user.email }}</div>
+                        <div class="account-menu-avatar">{{ user.name|default:"U"|first|upper }}</div>
+                        <div class="account-menu-hello">Hi, {{ user.name|default:"Tango User" }}!</div>
+                        <div class="account-menu-actions">
+                            <a href="{% url 'finance:profile' %}#security-section">Security</a>
+                            <a href="{% url 'finance:export_csv' %}" data-no-transition="true">Export CSV</a>
+                        </div>
+                        <a href="{% url 'finance:signout' %}" class="account-menu-signout" data-no-transition="true">Sign out</a>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -48,30 +83,28 @@
             <div class="main-zone">
                 <div class="summary-row">
                     <article class="summary-card glass-panel focus-card">
-                        <small>Expense Focus</small>
+                        <small>Spending Focus</small>
                         <h3>£{{ month_expense|floatformat:0 }}</h3>
                         <div class="focus-bars" aria-hidden="true">
-                            <span style="height: 28%"></span>
-                            <span style="height: 56%"></span>
-                            <span style="height: 40%"></span>
-                            <span style="height: 20%"></span>
-                            <span style="height: 34%"></span>
+                            {% for bar_height in focus_bar_heights %}
+                            <span style="height: {{ bar_height }}%"></span>
+                            {% endfor %}
                         </div>
                     </article>
 
                     <article class="summary-card glass-panel income">
                         <small>Month Income</small>
-                        <h3>£{{ month_income|floatformat:2 }}</h3>
+                        <h3 id="month-income-value">£{{ month_income|floatformat:2 }}</h3>
                     </article>
 
                     <article class="summary-card glass-panel expense">
                         <small>Month Expense</small>
-                        <h3>£{{ month_expense|floatformat:2 }}</h3>
+                        <h3 id="month-expense-value">£{{ month_expense|floatformat:2 }}</h3>
                     </article>
 
                     <article class="summary-card glass-panel net">
                         <small>Net Balance</small>
-                        <h3>£{{ month_net|floatformat:2 }}</h3>
+                        <h3 id="month-net-value">£{{ month_net|floatformat:2 }}</h3>
                     </article>
                 </div>
 
@@ -79,12 +112,46 @@
                     <div class="panel-head">
                         <div>
                             <h2>Recent Transactions</h2>
-                            <p>Your financial activity this week</p>
+                            <p id="result-count-text">{{ result_count }} result{{ result_count|pluralize }} matched your filters</p>
                         </div>
                         <button type="button" class="btn btn-info add-record-btn" id="openAddModalBtn">
                             <i class="bi bi-plus-circle-fill me-2"></i>Add Record
                         </button>
                     </div>
+                    <form method="get" class="transaction-filter-form">
+                        <input type="search" name="q" value="{{ query_text }}" placeholder="Search by note, category, type or currency">
+                        <div class="date-range-group" role="group" aria-label="Date range">
+                            <input
+                                type="date"
+                                name="date_from"
+                                value="{{ date_from }}"
+                                lang="en-GB"
+                                aria-label="From date"
+                            >
+                            <span class="date-range-separator">to</span>
+                            <input
+                                type="date"
+                                name="date_to"
+                                value="{{ date_to }}"
+                                lang="en-GB"
+                                aria-label="To date"
+                            >
+                        </div>
+                        <input type="number" step="0.01" name="min_amount" value="{{ min_amount }}" placeholder="Min amount">
+                        <input type="number" step="0.01" name="max_amount" value="{{ max_amount }}" placeholder="Max amount">
+                        <select name="sort">
+                            <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest first</option>
+                            <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest first</option>
+                            <option value="amount_desc" {% if sort == 'amount_desc' %}selected{% endif %}>Amount high to low</option>
+                            <option value="amount_asc" {% if sort == 'amount_asc' %}selected{% endif %}>Amount low to high</option>
+                            <option value="settlement_desc" {% if sort == 'settlement_desc' %}selected{% endif %}>Settlement high to low</option>
+                            <option value="settlement_asc" {% if sort == 'settlement_asc' %}selected{% endif %}>Settlement low to high</option>
+                        </select>
+                        <div class="transaction-filter-actions">
+                            <button type="submit" class="btn btn-sm btn-info">Apply</button>
+                            <a href="{% url 'finance:transaction_list' %}#recent-transactions" class="btn btn-sm btn-outline-light">Reset</a>
+                        </div>
+                    </form>
 
                     <div class="table-responsive">
                         <table class="table table-hover mb-0 txn-table">
@@ -98,7 +165,7 @@
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="transaction-table-body">
                                 {% for item in transactions %}
                                 <tr>
                                     <td>
@@ -130,11 +197,47 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="6" class="text-center py-5 text-light-emphasis">No records yet. Add your first transaction.</td></tr>
+                                <tr class="empty-transactions-row"><td colspan="6" class="text-center py-5 text-light-emphasis">No records yet. Add your first transaction.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    {% if page_obj.paginator.num_pages > 1 %}
+                    <div class="txn-pagination-wrap">
+                        <nav aria-label="Transaction pages">
+                            <ul class="pagination pagination-sm mb-0 txn-pagination">
+                                <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                                    {% if page_obj.has_previous %}
+                                    <a class="page-link" href="?{% if query_string_without_page %}{{ query_string_without_page }}&{% endif %}page={{ page_obj.previous_page_number }}#recent-transactions" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="page-link" aria-hidden="true">&laquo;</span>
+                                    {% endif %}
+                                </li>
+                                {% for p in page_obj.paginator.page_range %}
+                                {% if p == page_obj.number %}
+                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if query_string_without_page %}{{ query_string_without_page }}&{% endif %}page={{ p }}#recent-transactions">{{ p }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                                    {% if page_obj.has_next %}
+                                    <a class="page-link" href="?{% if query_string_without_page %}{{ query_string_without_page }}&{% endif %}page={{ page_obj.next_page_number }}#recent-transactions" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="page-link" aria-hidden="true">&raquo;</span>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </nav>
+                        <span class="txn-pagination-meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    </div>
+                    {% endif %}
                 </section>
             </div>
 
@@ -143,26 +246,59 @@
                     <h4>Financial KPIs</h4>
 
                     <article class="kpi-card glass-panel-2">
-                        <small>Unpaid Outflows</small>
-                        <h5>£{{ month_expense|floatformat:2 }}</h5>
-                        <div class="kpi-progress"><span style="width: 72%"></span></div>
+                        <small>Total Expense (Month)</small>
+                        <h5 id="kpi-expense-value">£{{ month_expense|floatformat:2 }}</h5>
+                        <div class="kpi-progress">
+                            <span id="kpi-expense-progress" style="width: {{ expense_progress }}%"></span>
+                        </div>
                     </article>
 
                     <article class="kpi-card glass-panel-2">
-                        <small>Expected Income</small>
-                        <h5>£{{ month_income|floatformat:2 }}</h5>
-                        <div class="kpi-progress income"><span style="width: 58%"></span></div>
+                        <small>Total Income (Month)</small>
+                        <h5 id="kpi-income-value">£{{ month_income|floatformat:2 }}</h5>
+                        <div class="kpi-progress income">
+                            <span id="kpi-income-progress" style="width: {{ income_progress }}%"></span>
+                        </div>
                     </article>
 
                     <article class="kpi-card glass-panel-2 net-card">
                         <small>Monthly Net</small>
-                        <h5>£{{ month_net|floatformat:2 }}</h5>
+                        <h5 id="kpi-net-value">£{{ month_net|floatformat:2 }}</h5>
                         <p id="expenseChartHint" class="mb-0"></p>
                     </article>
                 </section>
 
+                <section class="kpi-panel glass-panel behavior-panel">
+                    <h4>Spending Behavior Insights</h4>
+                    <article class="kpi-card glass-panel-2">
+                        <small>Average Daily Expense (30d)</small>
+                        <h5>£{{ avg_daily_expense|floatformat:2 }}</h5>
+                    </article>
+                    <article class="kpi-card glass-panel-2">
+                        <small>Top Category (30d)</small>
+                        <h5>{{ top_category_name }}</h5>
+                        <p>£{{ top_category_total|floatformat:2 }}</p>
+                    </article>
+                    <article class="kpi-card glass-panel-2">
+                        <small>Largest Expense (30d)</small>
+                        <h5>£{{ largest_expense_amount|floatformat:2 }}</h5>
+                        <p>{{ largest_expense_label }}</p>
+                    </article>
+                    <article class="kpi-card glass-panel-2 trend-card trend-{{ trend_direction }}">
+                        <small>30-Day Trend vs Previous 30 Days</small>
+                        <h5>
+                            {% if trend_direction == "up" %}+{% endif %}{{ trend_percent|floatformat:1 }}%
+                        </h5>
+                    </article>
+                    <article class="kpi-card glass-panel-2">
+                        <small>LLM Spending Summary (30d)</small>
+                        <p class="llm-summary-text">{{ spending_summary }}</p>
+                        <p class="llm-summary-source">Generated by {{ spending_summary_source }}</p>
+                    </article>
+                </section>
+
                 <section class="kpi-panel glass-panel chart-side">
-                    <h4>Category Mix</h4>
+                    <h4>Spending by Category</h4>
                     <div class="chart-box">
                         <canvas id="expenseChart"></canvas>
                     </div>
@@ -175,17 +311,17 @@
 <div id="ai-chat-wrapper">
     <div id="chat-window" class="card shadow-lg border-0 mb-3 ocean-chat-window chat-window-closed" aria-hidden="true">
         <div class="card-header ocean-chat-header text-white d-flex justify-content-between align-items-center py-3">
-            <h6 class="mb-0 d-flex align-items-center gap-2"><span class="chat-octo-mini"></span>Tango Octopus Assistant</h6>
+            <h6 class="mb-0 d-flex align-items-center gap-2"><span class="chat-octo-mini"></span>{{ assistant_name }} Assistant</h6>
             <button type="button" class="btn-close btn-close-white chat-toggle-btn"></button>
         </div>
         <div id="chat-messages" class="card-body overflow-auto p-3 chat-messages-body">
             <div class="ai-msg">
-                <div>Hi! I can help you record spending or analyze your last 30 days. <br><small class="text-muted">Example: "I spent £15 on dinner"</small></div>
+                <div>Hi, I'm {{ assistant_name }}. I can log transactions and review your last 30 days. <br><small class="text-muted">Example: "I spent £15 on dinner"</small></div>
             </div>
         </div>
         <div class="card-footer ocean-chat-footer border-0 p-3">
             <div class="input-group">
-                <input type="text" id="chat-input" class="form-control border-light bg-light" placeholder="Talk to the octopus...">
+                <input type="text" id="chat-input" class="form-control border-light bg-light" placeholder="Ask {{ assistant_name }}...">
                 <button class="btn btn-primary" id="chat-send-btn" type="button"><i class="bi bi-send-fill"></i></button>
             </div>
         </div>
@@ -263,12 +399,17 @@
 <div id="finance-config"
      data-add-url="{% url 'finance:add_transaction' %}"
      data-edit-template="{% url 'finance:edit_transaction' 0 %}"
-     data-chat-url="{% url 'finance:chat_api' %}">
+     data-chat-url="{% url 'finance:chat_api' %}"
+     data-dashboard-state-url="{% url 'finance:dashboard_state_api' %}">
 </div>
 {{ chart_labels|json_script:"chart-labels" }}
 {{ chart_data|json_script:"chart-data" }}
+{{ site_search_items|json_script:"site-search-items" }}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'finance/js/index.js' %}?v=20260312-ocean-ref5"></script>
+{% if chart_labels and chart_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+{% endif %}
+<script src="{% static 'finance/js/index.js' %}?v=20260316-ocean-ref19" defer></script>
 {% endblock %}

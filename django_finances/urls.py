@@ -17,8 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from django.urls import reverse_lazy
 
-admin.site.site_url = "/finance/"
+admin.site.site_url = reverse_lazy("finance:transaction_list")
 admin.site.site_header = "Tango Finance Administration"
 admin.site.site_title = "Tango Finance Admin"
 admin.site.index_title = "Operations Console"
@@ -29,7 +30,7 @@ handler404 = "django_finances.views.page_not_found"
 handler500 = "django_finances.views.server_error"
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/finance/", permanent=False)),
+    path("", RedirectView.as_view(url=reverse_lazy("finance:transaction_list"), permanent=False)),
     path('admin/', admin.site.urls),
     path('finance/', include('finance.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
