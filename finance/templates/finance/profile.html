@@ -11,9 +11,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-{% if turnstile_enabled %}
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -202,12 +199,6 @@
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">Verification for: <strong>{{ user.email }}</strong></p>
 
-                    {% if turnstile_enabled %}
-                    <div class="mb-3 border-bottom pb-3">
-                        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-                    </div>
-                    {% endif %}
-
                     <div class="mb-3">
                         <label class="form-label fw-bold text-muted text-uppercase">Verification Code</label>
                         <div class="d-flex gap-2 mb-3 align-items-center">
@@ -241,12 +232,6 @@
                 </div>
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">Verify deletion for: <strong>{{ user.email }}</strong></p>
-
-                    {% if turnstile_enabled %}
-                    <div class="mb-3 border-bottom pb-3">
-                        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-                    </div>
-                    {% endif %}
 
                     <div class="mb-3 mt-3">
                         <label class="form-label fw-bold text-muted text-uppercase">Verification Code</label>

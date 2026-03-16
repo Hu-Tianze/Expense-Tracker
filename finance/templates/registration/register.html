@@ -9,9 +9,6 @@
 
 {% block head_extra %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-{% if turnstile_enabled %}
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -39,12 +36,6 @@
                                 required
                             >
                         </div>
-
-                        {% if turnstile_enabled %}
-                        <div class="mb-3">
-                            <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-                        </div>
-                        {% endif %}
 
                         <div class="mb-3">
                             <button type="button" id="send-btn" class="btn btn-outline-primary">Get a One-Time Code</button>

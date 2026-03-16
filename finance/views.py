@@ -394,12 +394,9 @@ def register(request):
 @require_POST
 def send_code(request):
     email = request.POST.get('email')
-    cf_token = request.POST.get('cf_token')
     if not email:
         return JsonResponse({'status': 'error', 'code': 'missing_email', 'message': 'Email required'}, status=400)
-    if not verify_turnstile(cf_token, request.META.get('REMOTE_ADDR')):
-        return JsonResponse({'status': 'error', 'code': 'security_check_failed', 'message': 'Security check failed.'}, status=403)
-    
+
     lock_key = f"otp_lock:reg:{email}"
     if cache.get(lock_key):
         return JsonResponse({'status': 'error', 'code': 'rate_limited', 'message': f'Wait {OTP_RATE_LIMIT_SECONDS}s.'}, status=429)
@@ -631,9 +628,6 @@ def delete_category(request, cat_id):
 def send_delete_code(request):
     if request.method != "POST":
         return JsonResponse({'status': 'error', 'code': 'method_not_allowed', 'message': 'POST required'}, status=405)
-    cf_token = request.POST.get('cf_token')
-    if not verify_turnstile(cf_token, request.META.get('REMOTE_ADDR')):
-        return JsonResponse({'status': 'error', 'code': 'security_check_failed', 'message': 'Security check failed.'}, status=403)
 
     lock_key = f"otp_lock:del:{request.user.id}"
     if cache.get(lock_key):
@@ -695,9 +689,6 @@ def delete_account(request):
 def send_pwd_code(request):
     if request.method != "POST":
         return JsonResponse({'status': 'error', 'code': 'method_not_allowed', 'message': 'POST required'}, status=405)
-    cf_token = request.POST.get('cf_token')
-    if not verify_turnstile(cf_token, request.META.get('REMOTE_ADDR')):
-        return JsonResponse({'status': 'error', 'code': 'security_check_failed', 'message': 'Security check failed.'}, status=403)
 
     lock_key = f"otp_lock:pwd:{request.user.id}"
     if cache.get(lock_key):

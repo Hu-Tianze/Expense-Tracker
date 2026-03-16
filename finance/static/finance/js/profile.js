@@ -15,11 +15,6 @@ function handleOtpRequest(btnId, statusId, url, modalId) {
     const config = document.getElementById('profile-config');
     const turnstileEnabled = config && config.dataset.turnstileEnabled === '1';
 
-    if (turnstileEnabled && hasTurnstileWidget && !turnstileResponse) {
-        alert('Please complete the security check first!');
-        return;
-    }
-
     btn.disabled = true;
     status.innerText = 'Sending...';
     status.className = 'small text-muted';

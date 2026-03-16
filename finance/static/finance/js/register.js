@@ -71,11 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (turnstileEnabled && hasTurnstileWidget && !cfToken) {
-            alert('Please complete the security check first!');
-            return;
-        }
-
         const btn = $('#send-btn');
         btn.prop('disabled', true).text('Verifying...');
 
