@@ -88,15 +88,15 @@
                 <h3><i class="bi bi-graph-up-arrow"></i> Account Insights</h3>
                 <div class="insight-item">
                     <div><span>Monthly Income</span><strong>£{{ month_income|floatformat:2 }}</strong></div>
-                    <div class="bar"><i style="width: 70%"></i></div>
+                    <div class="bar"><i style="width: {{ income_bar }}%"></i></div>
                 </div>
                 <div class="insight-item">
                     <div><span>Monthly Expense</span><strong>£{{ month_expense|floatformat:2 }}</strong></div>
-                    <div class="bar"><i class="expense" style="width: 58%"></i></div>
+                    <div class="bar"><i class="expense" style="width: {{ expense_bar }}%"></i></div>
                 </div>
                 <div class="insight-item">
                     <div><span>Monthly Net</span><strong>£{{ month_net|floatformat:2 }}</strong></div>
-                    <div class="bar"><i class="net" style="width: 65%"></i></div>
+                    <div class="bar"><i class="net" style="width: {{ net_bar }}%"></i></div>
                 </div>
             </section>
         </aside>
