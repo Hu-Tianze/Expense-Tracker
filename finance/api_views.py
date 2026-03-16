@@ -33,7 +33,7 @@ def api_error(message, status_code, code):
 
 
 def serializer_error(serializer, code="validation_error"):
-    # Return first field-level error in a compact, client-friendly format.
+    # just return the first error, no need to dump everything at once
     field, errors = next(iter(serializer.errors.items()))
     msg = errors[0] if isinstance(errors, list) and errors else "Invalid input"
     return api_error(f"{field}: {msg}", 400, code)
@@ -91,7 +91,7 @@ class ChatAgentAPI(APIView):
         stats = recent_txs.values('type').annotate(total=models.Sum('amount_in_gbp'))
         
         last_5 = recent_txs.order_by('-occurred_at')[:5]
-        # Inject lightweight recent context to improve transaction parsing consistency.
+        # give the model a bit of recent history so it picks the right category/type
         history_str = "\n".join([f"- {t.occurred_at.date()}: {t.amount_in_gbp} GBP ({t.category.name if t.category else 'General'})" for t in last_5])
 
         system_prompt = f"""
@@ -126,7 +126,7 @@ class ChatAgentAPI(APIView):
 
             if ai_data.get('action') == 'record':
                 record_data = ai_data.get('data')
-                # Persist through shared service to reuse canonical validation/normalization.
+                # same service as the web form, so validation rules are identical
                 with transaction.atomic():
                     cat_name = record_data.get('category', 'General')
                     new_tx = create_transaction(

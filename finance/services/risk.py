@@ -25,7 +25,7 @@ def _level_from_score(score):
 
 
 def _heuristic_risk(transaction_obj):
-    # Risk warnings are only meaningful for expenses.
+    # income transactions don't need risk checks
     if transaction_obj.type != "Expense":
         return {"score": Decimal("0"), "level": "LOW", "reason": "Non-expense transaction", "source": "HEURISTIC"}
 
@@ -38,7 +38,7 @@ def _heuristic_risk(transaction_obj):
         reasons.append("High absolute amount.")
 
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    # Compare against recent behavior to reduce false positives from user-specific spending patterns.
+    # exclude the current transaction so it doesn't skew its own average
     recent_expenses = Transaction.objects.filter(
         user=transaction_obj.user,
         type="Expense",
@@ -73,7 +73,7 @@ def _heuristic_risk(transaction_obj):
 
 
 def _llm_risk(transaction_obj, heuristic_result):
-    # LLM enrichment is opt-in and only runs on suspicious candidates.
+    # disabled by default, enable with ENABLE_LLM_RISK=True in env
     if os.getenv("ENABLE_LLM_RISK", "False") != "True":
         return None
 
@@ -81,7 +81,7 @@ def _llm_risk(transaction_obj, heuristic_result):
     if not api_key:
         return None
 
-    # Keep token/cost low: only ask LLM on potentially suspicious expenses.
+    # only worth calling the LLM if heuristics already think something looks off
     if heuristic_result["score"] < Decimal("35") or transaction_obj.type != "Expense":
         return None
 
@@ -153,13 +153,13 @@ def _llm_risk(transaction_obj, heuristic_result):
 
 @transaction.atomic
 def evaluate_and_persist_risk_alert(transaction_obj):
-    # Use heuristic result as guaranteed baseline; LLM only refines when available.
+    # heuristic runs first, LLM result overrides it if available
     heuristic = _heuristic_risk(transaction_obj)
     llm_result = _llm_risk(transaction_obj, heuristic)
     final = llm_result or heuristic
 
     if final["level"] == "LOW":
-        # Keep existing alert history but mark as resolved when risk drops.
+        # resolve any existing open alert rather than deleting it
         RiskAlert.objects.filter(transaction=transaction_obj, status="OPEN").update(
             status="RESOLVED",
             updated_at=timezone.now(),
