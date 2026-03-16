@@ -605,11 +605,19 @@ def profile_view(request):
     month_expense = month_qs.filter(type='Expense').aggregate(Sum('amount_in_gbp'))['amount_in_gbp__sum'] or 0
     month_net = month_income - month_expense
 
+    bar_base = max(month_income, month_expense, Decimal("0.01"))
+    income_bar = round(float(Decimal(str(month_income)) / Decimal(str(bar_base)) * 100), 1)
+    expense_bar = round(float(Decimal(str(month_expense)) / Decimal(str(bar_base)) * 100), 1)
+    net_bar = round(min(float(abs(Decimal(str(month_net))) / Decimal(str(bar_base)) * 100), 100), 1)
+
     return render(request, 'finance/profile.html', {
         'user_categories': user_categories,
         'month_income': month_income,
         'month_expense': month_expense,
         'month_net': month_net,
+        'income_bar': income_bar,
+        'expense_bar': expense_bar,
+        'net_bar': net_bar,
         'turnstile_site_key': CF_SITE_KEY,
         'turnstile_enabled': TURNSTILE_ENABLED,
         'currency_choices': currency_choices,
