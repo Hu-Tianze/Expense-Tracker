@@ -7,6 +7,7 @@ from statistics import mean
 import requests
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -91,7 +92,7 @@ def _llm_risk(transaction_obj, heuristic_result):
     )
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": settings.AI_CHAT_MODEL,
         "messages": [
             {
                 "role": "system",

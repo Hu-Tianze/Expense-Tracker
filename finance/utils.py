@@ -1,6 +1,10 @@
-import requests
-from decimal import Decimal
+import logging
 import re
+from decimal import Decimal
+
+import requests
+
+logger = logging.getLogger(__name__)
 
 
 TYPE_CANONICAL_MAP = {
@@ -33,8 +37,8 @@ def get_exchange_rate(from_currency, to_currency='GBP'):
             if rate:
                 return Decimal(str(rate))
         
-    except Exception as e:
-        print(f"Exchange-rate API error: {e}")
+    except Exception:
+        logger.warning("Exchange-rate API error for %s->%s", from_currency, to_currency, exc_info=True)
     
     # Fallback rates when network is unavailable.
     fallback = {
