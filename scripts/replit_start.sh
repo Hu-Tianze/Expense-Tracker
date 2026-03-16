@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Apply DB migrations. --fake-initial skips creating tables that already exist
-# in the DB but are missing from Django's migration history (fixes DuplicateTable errors).
-python manage.py migrate --noinput --fake-initial
+# Sync DB schema directly from models, bypassing migration history conflicts.
+python manage.py migrate --run-syncdb
 
 # Replit exposes the service port via $PORT.
 exec gunicorn django_finances.wsgi:application \
