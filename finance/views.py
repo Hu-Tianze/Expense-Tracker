@@ -440,7 +440,7 @@ def send_code(request):
         expires_at=timezone.now() + timedelta(seconds=OTP_REGISTER_TTL_SECONDS),
         send_ip=request.META.get("REMOTE_ADDR"),
     )
-    # Store hash in cache so plaintext OTP is never persisted outside memory.
+    # store the hash, not the actual code
     cache.set(f"finance:reg_otp:{email}", code_hash, timeout=OTP_REGISTER_TTL_SECONDS)
     cache.set(lock_key, True, timeout=OTP_RATE_LIMIT_SECONDS)
     try:
@@ -661,7 +661,7 @@ def add_category(request):
 @require_POST
 def delete_category(request, cat_id):
     category = get_object_or_404(Category, id=cat_id, user=request.user)
-    # Keep transactions and clear category rather than deleting records.
+    # unlink transactions first so we don't lose historical data
     with transaction.atomic():
         Transaction.objects.filter(category=category).update(category=None)
         category.delete()
@@ -709,7 +709,7 @@ def send_delete_code(request):
 def delete_account(request):
     if request.method == 'POST':
         lock_id = f"lock:delete_user:{request.user.id}"
-        # Prevent double-submit races on destructive account operations.
+        # stop double-clicks from triggering two deletes at once
         lock_context = cache.lock(lock_id, timeout=10, blocking=False) if hasattr(cache, "lock") else nullcontext(True)
         with lock_context as acquired:
             if hasattr(cache, "lock") and not acquired:

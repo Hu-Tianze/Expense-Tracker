@@ -110,7 +110,7 @@ class ChatAgentAPI(APIView):
         stats = recent_txs.values('type').annotate(total=models.Sum('amount_in_gbp'))
         
         last_5 = recent_txs.order_by('-occurred_at')[:5]
-        # Inject lightweight recent context to improve transaction parsing consistency.
+        # give the model a bit of recent history so it picks the right category/type
         history_str = "\n".join([f"- {t.occurred_at.date()}: {t.amount_in_gbp} GBP ({t.category.name if t.category else 'General'})" for t in last_5])
 
         system_prompt = f"""

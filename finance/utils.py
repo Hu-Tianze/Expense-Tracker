@@ -23,7 +23,8 @@ EXPENSE_KEYWORDS = {
 }
 
 def get_exchange_rate(from_currency, to_currency='GBP'):
-    """Fetch exchange rate from Frankfurter API (no API key required)."""
+    # uses frankfurter.app which is free and doesn't need an API key
+    # falls back to hardcoded rates if the request fails
     if from_currency == to_currency:
         return Decimal('1.0')
     

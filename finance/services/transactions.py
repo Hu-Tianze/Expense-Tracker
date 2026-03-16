@@ -7,7 +7,6 @@ from finance.utils import normalize_transaction_type
 
 
 def _normalize_amount(amount):
-    # Centralize monetary validation so web and API paths enforce identical rules.
     try:
         value = Decimal(str(amount))
     except (InvalidOperation, TypeError, ValueError) as exc:
@@ -39,8 +38,8 @@ def create_transaction(
     note_prefix="",
     type_context="",
 ):
-    # Normalize and sanitize inputs before touching ORM state.
     normalized_amount = _normalize_amount(amount)
+    # category can be passed in directly (from web view) or looked up by name (from AI/API)
     final_category = category or (
         get_or_create_category_for_user(user, category_name) if category_name is not None else None
     )
@@ -68,7 +67,6 @@ def update_transaction(
     occurred_at,
     category,
 ):
-    # Keep update logic in one place to avoid divergent rules between endpoints.
     tx.original_amount = _normalize_amount(amount)
     tx.currency = currency or "GBP"
     tx.type = normalize_transaction_type(tx_type, note or "")
