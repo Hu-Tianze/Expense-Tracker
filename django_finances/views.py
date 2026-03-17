@@ -18,12 +18,19 @@ def _is_api_request(request):
     )
 
 
+def _is_admin_request(request):
+    return request.path.startswith("/admin/")
+
+
 def _friendly_redirect(request, user_message, *, api_status=400, api_code="request_failed"):
     if _is_api_request(request):
         return JsonResponse(
             {"status": "error", "code": api_code, "message": user_message},
             status=api_status,
         )
+    if _is_admin_request(request):
+        from django.http import HttpResponse
+        return HttpResponse(user_message, status=api_status)
     messages.error(request, user_message)
     if request.user.is_authenticated:
         return redirect("finance:transaction_list")
@@ -47,6 +54,9 @@ def permission_denied(request, exception):
             {"status": "error", "code": "permission_denied", "message": "Access denied."},
             status=403,
         )
+    if _is_admin_request(request):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You do not have permission to access the admin.")
     return _friendly_redirect(request, "You do not have permission for that action.")
 
 
